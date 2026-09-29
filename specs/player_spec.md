@@ -537,6 +537,10 @@ drag-and-drop in the desktop app.
 - **Tested on macOS only.** The Windows and Linux builds are built, not run. The README
   marks them **"unverified"**, and the release notes say the same. Linux users install
   their own GStreamer codecs (§1.1).
+- *(Decided 2026-09-29 by the orchestrator.)* Accepted as drafted: no drag-and-drop in the app; a macOS build for arm64
+  only (no Intel or universal build); the most recently opened file wins (§2.10); the
+  release tag `v0.2.0` (§4, Phase 2, D.3); desktop facts in a new `rules/desktop.md`
+  (Phase 2 close-out).
 - **Drag-and-drop is not in the desktop app in Phase 2.** Tauri's window takes file drops
   itself, and a dropped path would be a third way to open a file, which the scheme's
   allow-list (§2.9) does not include. The app hides the page's "or drop a file here"
@@ -566,9 +570,10 @@ disk. The page builds the URL with Tauri's `convertFileSrc(path, 'stream')`:
    The handler never reads more than it sends.
 5. A malformed, unsatisfiable or multi-range header answers **416 with
    `Content-Range: bytes */len`**.
-6. No `Range` header answers 206 with the first 1 MiB. This deviates from HTTP, which
-   says 200 with the whole file. It is kept because a 200 would mean reading the whole
-   file, which is the thing this design avoids. WebKit sends `Range` for media.
+6. No `Range` header answers 206 with the first 1 MiB. **This is a deliberate departure
+   from HTTP**, which says 200 with the whole file. The reason: WebKit's media stack always
+   sends `Range`, so only a non-media request can arrive without one, and a full-file 200
+   is exactly what this scheme exists to avoid. *(Decided 2026-09-29 by the orchestrator.)* The choice stays.
 7. **Every answer carries CORS headers**, including 403, 404 and 416:
    `Access-Control-Allow-Origin: *` and `Access-Control-Expose-Headers: content-range,
    accept-ranges, content-length`. Without them the page sees an error answer only as
@@ -733,6 +738,9 @@ drives the **production app** through an in-page agent, as Spike 2 did:
   measurement.)* The Phase 2 gate runs enough repetitions to see it again at that rate
   (F), with every request logged (§2.9). **Blocks Phase 2's exit gate if it recurs**:
   then the build stops, and the user decides from the log.
+  - *(Decided 2026-09-29 by the orchestrator.)* Any stuck seek fails F; that stays. If it recurs, the first option
+    to weigh is a **watchdog** that re-issues a seek whose `seeked` has not come after a
+    timeout. That would be a spec change, decided then, not now.
 
 ## 4. Implementation phases
 
@@ -862,7 +870,11 @@ Drafted 2026-09-29 from `idea.md` ("Agreed for Phase 2") and two spikes on branc
       `frontendDist: ../dist-desktop`; `beforeBuildCommand: npm run build:desktop`;
       `fileAssociations` for mp4 (role Viewer); bundle targets `all`. `csp` stays `null`,
       as in the spikes; a CSP is not in scope. The product name and icon are
-      placeholders until OQ-3.
+      placeholders until OQ-3. *(Decided 2026-09-29 by the orchestrator.)* The identifier
+      `com.ivapo.video-player-assimilator` **stays even if the brand changes** (OQ-3):
+      macOS keys the app's file associations, data and log directories to it, so
+      renaming it later would orphan them. Only the product name and icon follow the
+      brand.
     - `capabilities/default.json`: what the page needs to `listen` for `opened`.
     - `src/main.rs`: the builder, the window made in `setup`, `RunEvent::Opened`, argv
       at start, and the single-instance callback.
@@ -932,7 +944,8 @@ Drafted 2026-09-29 from `idea.md` ("Agreed for Phase 2") and two spikes on branc
     only in B.3 and C(b), to A, because A.3's seek is also a long paused seek, and 108
     runs make a stale A.3 likely if the app is stale as often as Safari. When the warning
     shows, the readout's text is the §2.11 wording.
-  - **Any stuck seek fails the gate** (§2.12). The build then stops, with the stuck
+  - **Any stuck seek fails the gate** (§2.12; kept by the orchestrator's decision,
+    2026-09-29, see OQ-8). The build then stops, with the stuck
     seek's `stream.log` lines, for the user's decision (OQ-8).
   - C(c) records its outcome, as Phase 1 amended for a batched counter, and asserts that
     `data-counter` is `batched`.
