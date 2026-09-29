@@ -71,6 +71,11 @@ const QUANTA = [0.1, 0.01, 0.001] as const;
 const FINEST_QUANTUM = 1e-6;
 /** Consecutive counted gaps of one run that decide the counter mode (amended R7-B1). */
 const COUNTER_RUN = 8;
+/**
+ * A gap longer than this many d_min is not counted (amended at the build): beyond it,
+ * round(g / d_min) is no longer exact for whole-ms timestamps at 60 fps.
+ */
+const MAX_FRAMES_PER_GAP = 7;
 
 interface Candidate {
   d: number;
@@ -107,32 +112,46 @@ interface Run {
   id: number;
   /** False until the run's second callback: the first only starts the run. */
   primed: boolean;
-  /** The counted anchor: the last callback that was not ignored. */
+  /** The anchor: the last callback that was not ignored. */
   lastTime: number;
-  firstFrames: number | null;
   lastFrames: number | null;
-  counted: boolean;
-  /** Consecutive counted gaps on which the counter moved, and on which it did not. */
+  /** Consecutive gaps on which the counter moved, and on which it did not. */
   advancing: number;
   flat: number;
+}
+
+/** One gap between consecutive callbacks of a run, as stored for every recount. */
+interface Gap {
+  t0: number;
+  t1: number;
+  g: number;
+  runId: number;
+  /** The counter's change across the gap; null without the API. */
+  dT: number | null;
 }
 
 export class Estimator {
   private readonly hasQuality: boolean;
   private status: EstimateStatus = 'measuring';
   private d: number | null = null;
-  private gapList: number[] = [];
+  /** Every gap at or above the floor, counted or not. */
+  private gapList: Gap[] = [];
   private dMin = Infinity;
-  private S = 0;
-  private N = 0;
-  private R = 0;
-  /** Which quanta every counted mediaTime still sits on. */
-  private onQuantum = QUANTA.map(() => true);
-  /** ΔT of the runs already closed. */
-  private closedDeltaT = 0;
   private run: Run | null = null;
   private capReached = false;
   private counter: CounterMode = 'unknown';
+
+  // Derived from the counted gaps: rebuilt in full whenever d_min drops.
+  private counted = 0;
+  private S = 0;
+  private N = 0;
+  /** Segments with a counted gap: a run, split again at every gap not counted. */
+  private R = 0;
+  private dTSum = 0;
+  /** Which quanta every counted mediaTime still sits on. */
+  private onQuantum = QUANTA.map(() => true);
+  private segRun: number | null = null;
+  private segOpen = false;
 
   constructor(hasQuality: boolean) {
     this.hasQuality = hasQuality;
@@ -143,14 +162,11 @@ export class Estimator {
     if (this.status === 'snapped' || this.status === 'unsupported') return false;
     const run = this.run;
     if (!run || run.id !== s.runId || s.mediaTime < run.lastTime) {
-      this.closeRun();
       this.run = {
         id: s.runId,
         primed: false,
         lastTime: s.mediaTime,
-        firstFrames: s.totalVideoFrames,
         lastFrames: s.totalVideoFrames,
-        counted: false,
         advancing: 0,
         flat: 0,
       };
@@ -161,31 +177,31 @@ export class Estimator {
       // can report a position that is not a presented frame. The second callback anchors.
       run.primed = true;
       run.lastTime = s.mediaTime;
-      run.firstFrames = run.lastFrames = s.totalVideoFrames;
+      run.lastFrames = s.totalVideoFrames;
       return false;
     }
     const g = s.mediaTime - run.lastTime;
-    if (g < MIN_GAP) return false; // ignored; the anchor stays, so S telescopes
+    if (g < MIN_GAP) return false; // ignored; the anchor stays
 
-    if (!run.counted) {
-      run.counted = true;
-      this.R++;
-      this.noteTime(run.lastTime);
-    }
-    this.noteTime(s.mediaTime);
+    const gap: Gap = {
+      t0: run.lastTime,
+      t1: s.mediaTime,
+      g,
+      runId: run.id,
+      dT: s.totalVideoFrames !== null && run.lastFrames !== null ? s.totalVideoFrames - run.lastFrames : null,
+    };
     this.noteCounter(run, s.totalVideoFrames);
     run.lastTime = s.mediaTime;
     run.lastFrames = s.totalVideoFrames;
 
-    this.gapList.push(g);
-    this.S += g;
+    this.gapList.push(gap);
     if (g < this.dMin) {
-      // d_min dropped: recount n_g for every stored gap against it (R7-B2).
+      // d_min dropped: recount every stored gap against it (R7-B2), including which gaps
+      // are too long to count.
       this.dMin = g;
-      this.N = 0;
-      for (const x of this.gapList) this.N += Math.round(x / this.dMin);
+      this.recount();
     } else {
-      this.N += Math.round(g / this.dMin);
+      this.admit(gap);
     }
     if (this.S >= CAP_SECONDS) this.capReached = true;
     return this.decide();
@@ -205,16 +221,50 @@ export class Estimator {
       d: this.d,
       dEst,
       dMin: Number.isFinite(this.dMin) ? this.dMin : null,
-      gaps: this.gapList.length,
+      gaps: this.counted,
       S: this.S,
       N: this.N,
       R: this.R,
       E: this.quantum(),
       epsilon: this.N > 0 ? (this.R * this.quantum()) / this.N : null,
-      deltaT: this.deltaT(),
+      deltaT: this.hasQuality ? this.dTSum : null,
       counter: this.counter,
       capReached: this.capReached,
     };
+  }
+
+  private recount(): void {
+    this.counted = this.S = this.N = this.R = this.dTSum = 0;
+    this.onQuantum = QUANTA.map(() => true);
+    this.segRun = null;
+    this.segOpen = false;
+    for (const gap of this.gapList) this.admit(gap);
+  }
+
+  /**
+   * Count one gap against the current d_min, in stream order. A gap longer than
+   * MAX_FRAMES_PER_GAP × d_min is not counted: its frame count is no longer exact. It
+   * ends a segment, because S no longer telescopes across it.
+   */
+  private admit(gap: Gap): void {
+    if (gap.runId !== this.segRun) {
+      this.segRun = gap.runId;
+      this.segOpen = false;
+    }
+    if (gap.g > MAX_FRAMES_PER_GAP * this.dMin) {
+      this.segOpen = false;
+      return;
+    }
+    if (!this.segOpen) {
+      this.segOpen = true;
+      this.R++;
+    }
+    this.counted++;
+    this.S += gap.g;
+    this.N += Math.round(gap.g / this.dMin);
+    this.dTSum += gap.dT ?? 0;
+    this.noteTime(gap.t0);
+    this.noteTime(gap.t1);
   }
 
   private noteTime(t: number): void {
@@ -242,34 +292,16 @@ export class Estimator {
     return i >= 0 ? QUANTA[i] : FINEST_QUANTUM;
   }
 
-  private closeRun(): void {
-    const run = this.run;
-    if (run?.counted && run.firstFrames !== null && run.lastFrames !== null) {
-      this.closedDeltaT += run.lastFrames - run.firstFrames;
-    }
-    this.run = null;
-  }
-
-  private deltaT(): number | null {
-    if (!this.hasQuality) return null;
-    let dt = this.closedDeltaT;
-    const run = this.run;
-    if (run?.counted && run.firstFrames !== null && run.lastFrames !== null) {
-      dt += run.lastFrames - run.firstFrames;
-    }
-    return dt;
-  }
-
   /** Apply the snap, cross-check and cap rules. Returns true when `d` changed. */
   private decide(): boolean {
-    if (this.gapList.length < MIN_GAPS) return false;
+    if (this.counted < MIN_GAPS) return false;
     const before = this.d;
     const dEst = this.S / this.N;
 
     if (this.hasQuality) {
       // Until the counter's mode is known, the check neither agrees nor disagrees: hold.
       if (this.counter === 'unknown') return false;
-      const dT = this.deltaT()!;
+      const dT = this.dTSum;
       // A batched counter cannot count frames per run: skip the check (OQ-2 limitation).
       if (this.counter === 'per-frame' && Math.abs(dT - this.N) > 0.1 * this.N + 3 * this.R) {
         // N does not count the file's frames: the file is faster than the display presents.
@@ -357,8 +389,8 @@ export class StepController {
   /** Set between the player's own pause() and its `pause` event. */
   private ownPauseEvent = false;
   /**
-   * The frame-callback registration. A seek cancels it and `seeked` registers a fresh one;
-   * a callback whose generation is not current (one that fires although cancelled, for the
+   * The frame-callback registration. `seeked` and a new file replace it with a fresh one;
+   * a callback whose generation is not current (one that fires, although replaced, for a
    * pre-seek frame) is ignored.
    */
   private frameGen = 0;
@@ -372,10 +404,7 @@ export class StepController {
     this.est = new Estimator(this.hasQuality);
 
     video.addEventListener('seeked', () => this.onSeeked());
-    video.addEventListener('seeking', () => {
-      this.endRun();
-      this.unwatchFrames();
-    });
+    video.addEventListener('seeking', () => this.endRun());
     video.addEventListener('pause', () => this.onPause());
     video.addEventListener('ended', () => this.onEnded());
     video.addEventListener('play', () => {

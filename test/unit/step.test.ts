@@ -85,9 +85,9 @@ describe('C(a) — no wrong snap from an early skipped frame (R7-B2)', () => {
     est.push(s(3));
     expect(est.state().N).toBe(3);
     expect(est.state().dMin).toBeCloseTo(d, 5);
-    // A 7-frame gap afterwards adds 7.
-    est.push(s(10));
-    expect(est.state().N).toBe(10);
+    // A 6-frame gap afterwards adds 6.
+    est.push(s(9));
+    expect(est.state().N).toBe(9);
   });
 });
 
@@ -170,6 +170,47 @@ describe('the cap', () => {
   });
 });
 
+describe('long gaps (amended at the build): a gap over 7 × d_min is not counted', () => {
+  /**
+   * The stalled-Safari pattern (build soak): whole-ms 60 fps where the callbacks fall
+   * behind, about 3 frames per callback on average, with some stalls of 12+ frames.
+   * Before the rule, round(g / 16 ms) overcounted those, nothing snapped, and the cap
+   * enabled step with d = 16.199 ms.
+   */
+  const stalled = (): Sample[] => {
+    // Averages 2.75 frames per callback, with a 12- and a 13-frame stall every 20 callbacks.
+    const skips = [1, 2, 1, 3, 2, 1, 12, 1, 2, 1, 3, 2, 1, 1, 13, 2, 1, 2, 1, 3];
+    const frames = [0];
+    for (let i = 0; frames[frames.length - 1] + skips[i % skips.length] < 300; i++) {
+      frames.push(frames[frames.length - 1] + skips[i % skips.length]);
+    }
+    return frames.map((f) => ({ mediaTime: msRound(f / 60), totalVideoFrames: 0, runId: 0 }));
+  };
+
+  it('the stalled pattern: at `ended`, uncertain with d within ε of 1/60 (was 16.199 ms)', () => {
+    const { states } = trace(stalled());
+    expect(states.every((s) => s.d === null)).toBe(true); // nothing enabled while playing
+    const final = estimate(stalled(), { ended: true });
+    expect(final.status).toBe('uncertain');
+    expect(Math.abs(final.d! - 1 / 60)).toBeLessThanOrEqual(final.epsilon!);
+    expect(final.R).toBeGreaterThan(1); // each uncounted stall split the run
+  });
+
+  it('a gap too long now is re-checked when d_min drops: counted at 7 × 33 ms, not at 7 × 16 ms', () => {
+    const est = new Estimator(false);
+    const t = (ms: number): Sample => ({ mediaTime: ms / 1000, totalVideoFrames: null, runId: 0 });
+    est.push(t(0));
+    est.push(t(0)); // first callback only starts the run; this anchors
+    est.push(t(33)); // d_min = 33 ms
+    est.push(t(183)); // 150 ms: within 7 × 33 = 231 ms, counted
+    expect(est.state().gaps).toBe(2);
+    est.push(t(199)); // 16 ms: d_min drops; 150 ms > 7 × 16 = 112 ms, no longer counted
+    expect(est.state().gaps).toBe(2);
+    expect(est.state().S).toBeCloseTo(0.049, 9);
+    expect(est.state().R).toBe(2); // the uncounted gap splits the run
+  });
+});
+
 describe('runs', () => {
   it('a gap across runs never counts, nor does the gap from a run\'s first callback', () => {
     // 5 callbacks per run: the first starts it, the second anchors, 3 gaps count.
@@ -186,8 +227,9 @@ describe('runs', () => {
     const a = stream(30, range(0, 5), usRound, 0);
     const short = { ...a[4], mediaTime: a[4].mediaTime + 0.00208 }; // the Safari 2.08 ms
     expect(estimate([...a, short]).gaps).toBe(3);
+    expect(estimate([...a, short]).dMin).toBeCloseTo(1 / 30, 5);
     const four = { ...a[4], mediaTime: a[4].mediaTime + 0.004 };
-    expect(estimate([...a, four]).gaps).toBe(4);
+    expect(estimate([...a, four]).dMin).toBeCloseTo(0.004, 9); // counted: d_min drops to it
     // Whole-ms 240 fps (gaps of 4 and 5 ms) snaps to exactly 1/240.
     expect(estimate(stream(240, range(0, 2000), msRound)).d).toBe(1 / 240);
   });
