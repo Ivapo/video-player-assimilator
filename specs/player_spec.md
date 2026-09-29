@@ -15,7 +15,7 @@ phases:
     cut: null
     by: null
   - name: "Phase 2 — Desktop app"
-    reviewed: null
+    reviewed: 2026-09-29
     shipped: null
     cut: null
     by: null
@@ -533,7 +533,10 @@ drag-and-drop in the desktop app.
   (arm64), `windows-latest` and `ubuntu-latest` on every push to `main`. On a pushed tag
   `v*` it also attaches the bundles, **unsigned**, to the GitHub Release for that tag:
   `.dmg` (macOS), `.msi` and NSIS `.exe` (Windows), `.deb`, `.rpm` and AppImage (Linux).
-  No signing or notarization. Spike 1 built all three in CI (run 36603767160).
+  No signing or notarization. Spike 1 built all three in CI (run 36603767160). On a tag,
+  a first job creates the Release with `gh release create` and the three build jobs,
+  which depend on it, attach their bundles with `gh release upload` (review round 1,
+  R1-N12). No third-party release action.
 - **Tested on macOS only.** The Windows and Linux builds are built, not run. The README
   marks them **"unverified"**, and the release notes say the same. Linux users install
   their own GStreamer codecs (§1.1).
@@ -543,8 +546,9 @@ drag-and-drop in the desktop app.
   (Phase 2 close-out).
 - **Drag-and-drop is not in the desktop app in Phase 2.** Tauri's window takes file drops
   itself, and a dropped path would be a third way to open a file, which the scheme's
-  allow-list (§2.9) does not include. The app hides the page's "or drop a file here"
-  hint. A later phase can add it.
+  allow-list (§2.9) does not include. In the app, the page replaces the initial text of
+  `#name`, "or drop a file here", with "no file open" (review round 1, R1-N6; the same
+  element later shows the file name). A later phase can add drag-and-drop.
 
 ### 2.9 The desktop file source: the `stream:` scheme (decision, recorded, Spike 2)
 
@@ -560,8 +564,12 @@ disk. The page builds the URL with Tauri's `convertFileSrc(path, 'stream')`:
 
 1. Decode the path. **If it is not a path the user opened, answer 403**, before touching
    the file. "Opened" means returned by the file dialog or delivered by a file-open event
-   (§2.10), in this process. The comparison is after `std::fs::canonicalize` on both
-   sides. An opened path that no longer exists answers 404.
+   (§2.10), in this process. *(Review round 1, R1-B5.)* At open time the allow-list
+   stores both the path as delivered and, when `std::fs::canonicalize` succeeds, its
+   canonical form. A request matches when its decoded path equals a stored path of
+   either kind, or when its own `canonicalize` succeeds and equals a stored canonical
+   path. No match answers 403, whether or not the file exists. Only a match opens the
+   file, and a matched path that no longer exists answers 404.
 2. `HEAD`: 200 with `Content-Length` and `Content-Type`.
 3. **Single byte ranges only:** `bytes=a-b`, `bytes=a-` and `bytes=-n`, with the end
    clamped to the file. The answer is 206 with `Content-Range: bytes a-b/len`.
@@ -614,7 +622,8 @@ Two ways, both through the shell, so the shell knows every path it may serve (§
 - **The dialog.** In the app, "Open mp4…" does not open the page's `<input type="file">`.
   `tauriPlatform` cancels the input's click and invokes the command `pick_file`, which
   opens the system dialog from Rust (`tauri-plugin-dialog`, filter mp4), adds the path to
-  the allow-list, and returns it.
+  the allow-list, and returns it. `pick_file` is an `async` command, so the blocking
+  dialog call does not run on the main thread (review round 1, R1-N9).
 - **"Open with" on macOS.** `tauri.conf.json` declares `bundle.fileAssociations` for mp4
   (role Viewer), which becomes `CFBundleDocumentTypes`; the app is then listed under
   Finder's "Open With". Finder sends an open-documents event, which Tauri delivers as
@@ -634,6 +643,12 @@ about 87 ms after launch, before `setup`, so before the webview exists (Spike 1,
 - The page first registers its `opened` listener, then invokes `subscribe_opened`, which
   sets `subscribed` and returns and empties `buffer`, under the same lock. So every path
   is delivered exactly once, whichever side comes first.
+- **A subscription belongs to one page** (review round 1, R1-B3). When the webview starts
+  loading a page (`on_page_load`, `PageLoadEvent::Started`), the shell sets
+  `subscribed = false` under the same lock. A path delivered while a new page loads is
+  buffered until that page subscribes, and is not emitted to a page that has no listener
+  yet. The gate reloads the page for every load (§2.12), so this is on the gate's path,
+  not only a corner case.
 - The page loads the **last** path it receives: the most recent open wins. A new file
   resets the player as on the web (§2.3, "Reset on a new file").
 
@@ -676,8 +691,18 @@ drives the **production app** through an in-page agent, as Spike 2 did:
   `RunEvent::Opened` (§2.10). The page, `src/` and the scheme handler are the release
   ones. CI builds without the feature.
 - **The runner**, `test/desktop/run.ts`, is a plain HTTP channel on `127.0.0.1:5181`. It
-  drives the unchanged `test/e2e/gate.ts` through a `Driver`, as Spike 1 did. Keys are
-  synthetic `keydown` events on `window`; safaridriver sent real keys in Phase 1.
+  drives `test/e2e/gate.ts` through a `Driver`, as Spike 1 did. Keys are synthetic
+  `keydown` events on `window`; safaridriver sent real keys in Phase 1.
+  - **`Driver.load`** (review round 1, R1-B3): it reloads the page, waits for the
+    agent's hello from the new page (asserted as below), and only then invokes
+    `gate_open(path)`. Paths reach the new page through the buffer (§2.10, "A
+    subscription belongs to one page"). Then it waits for the player to load the file.
+  - **`browser: 'app'`** (review round 1, R1-B1). `Driver.browser` gains a third value,
+    and `gate.ts` gets the app's read rule (§4, Phase 2, F). The steps of each part do not
+    change.
+  - `run.ts` sits under `test/`, which `tsconfig.json` includes, so `npm run build`
+    type-checks it. It imports `gate.ts` without a `.ts` extension (review round 1,
+    R1-N7).
 - **The runner asserts that it is talking to the app's page**, on every hello:
   `location.protocol === 'tauri:'` and `'__TAURI_INTERNALS__' in window`. A hello from
   any other page aborts the run. Spike 1 skipped this, and most of its "app" numbers were
@@ -863,10 +888,11 @@ Drafted 2026-09-29 from `idea.md` ("Agreed for Phase 2") and two spikes on branc
 
 - **Scope:**
   - `src-tauri/`:
-    - `Cargo.toml`: `tauri` 2, `tauri-plugin-dialog`, `percent-encoding`, and
-      `tauri-plugin-single-instance` for Windows and Linux only. The feature `gate`.
+    - `Cargo.toml`: `tauri` pinned to `~2.12`, `tauri-plugin-dialog`, `percent-encoding`,
+      and `tauri-plugin-single-instance` for Windows and Linux only. The feature `gate`.
     - `tauri.conf.json`: identifier `com.ivapo.video-player-assimilator`; the version
-      from `package.json`; one window, 960×760, `"create": false`;
+      from `package.json`, which this phase bumps to `0.2.0` to match the tag (review
+      round 1, R1-N5); one window, 960×760, `"create": false`;
       `frontendDist: ../dist-desktop`; `beforeBuildCommand: npm run build:desktop`;
       `fileAssociations` for mp4 (role Viewer); bundle targets `all`. `csp` stays `null`,
       as in the spikes; a CSP is not in scope. The product name and icon are
@@ -882,21 +908,35 @@ Drafted 2026-09-29 from `idea.md` ("Agreed for Phase 2") and two spikes on branc
     - `src/opened.rs`: `deliver`, `subscribe_opened` and `pick_file` (§2.10).
     - `src/gate.rs`: the `gate` feature only (§2.12).
     - Rust unit tests, run by `cargo test`, for `parse_range`, the allow-list, and the
-      exactly-once delivery in both orders.
+      exactly-once delivery in both orders, and across a page reset: subscribe, reset
+      on page load, deliver, subscribe again, and the path comes back once from the
+      buffer (R2-N4).
   - `src/platform-tauri.ts`: `tauriPlatform(input)`, implementing `Platform` (§2.2).
-  - `src/main.ts`: the platform chosen by `import.meta.env.MODE` (§2.8); the new
-    `MESSAGES.stale` (§2.11); the drop hint hidden in the app.
+  - `src/main.ts`: the platform chosen by `import.meta.env.MODE` (§2.8); the value of
+    the existing `MESSAGES.stale` changed to the §2.11 wording; the `#name` text replaced
+    in the app (§2.8).
+  - `test/e2e/gate.ts` (review round 1, R1-B1): `Driver.browser` gains `'app'` with the
+    app's read rule (F), and every browser gets the wording check: a read with
+    `data-stale="true"` asserts that the readout text contains the §2.11 wording.
+    `G.settleRead` returns the readout text along with `{frame, stale}`, taken in the
+    same read (R2-N5). The gate's steps do not change.
   - `index.html`: `crossorigin="anonymous"` on the `<video>`.
   - `package.json`: `build:desktop` (`tsc --noEmit && vite build --mode desktop
-    --base=./ --outDir dist-desktop`) and `tauri` scripts; `@tauri-apps/api`; and
-    `@tauri-apps/cli` pinned to 2.12.x, which Spike 1's CI used.
+    --base=./ --outDir dist-desktop`) and `tauri` scripts; `@tauri-apps/api` and
+    `@tauri-apps/cli`, both pinned to 2.12.x, which Spike 1's CI used; `version` `0.2.0`.
+    The `tauri` crate, `@tauri-apps/api` and the CLI stay on one minor: the CLI refuses a
+    crate/api mismatch (R1-N8, R2-N2).
   - `.github/workflows/desktop.yml` (§2.8).
   - `test/desktop/`: `agent.js`, `run.ts`, and the suites below (launches, scheme probe,
     paths, large file, stale soak, "Open with").
-  - `scripts/make-big-fixture.sh`: writes the 1 GB file of part E outside the repo:
+  - `scripts/make-big-fixture.sh`: writes the large file of part E outside the repo, to
+    `$BIG_FIXTURE` (default `~/Movies/vpa-big.mp4`), which the runner reads:
     `testsrc2` at 1920×1080, 30 fps, 640 s, `h264_videotoolbox` at 40 Mb/s, yuv420p, and
-    no `faststart`, so `moov` comes after `mdat`. That is the shape of Spike 2's file,
-    1 093 112 387 bytes.
+    no `faststart`, so `moov` comes after `mdat`. That is the recipe of Spike 2's file.
+    Its size is measured, not derived (R1-N2): VideoToolbox undershoots its target on
+    `testsrc2`, and Spike 2's file came to 1 093 112 387 bytes (about 13.7 Mb/s), not the
+    3.2 GB that 40 Mb/s × 640 s would give. The gate needs it over 10^9 bytes, and the
+    script fails if it is not (R2-N3: Spike 2's file is only 1.8% over 1 GiB).
 - **Exit gate.** All on this Mac (macOS 26.6.2, arm64, ~60 Hz display), on the gate build
   of §2.12 unless a step says otherwise. Every step in the app runs under
   `caffeinate -dimu` and asserts the app's page (§2.12).
@@ -908,16 +948,21 @@ Drafted 2026-09-29 from `idea.md` ("Agreed for Phase 2") and two spikes on branc
   3. For the tag `v0.2.0` on `main`, the GitHub Release holds six unsigned bundles:
      `.dmg`, `.msi`, NSIS `.exe`, `.deb`, `.rpm` and AppImage.
   4. The web bundle contains no Tauri code: `dist/` has no `__TAURI` and no `stream.`.
-     The release app has no `gate_open`: invoking it fails.
+     The release app has no `gate_open` (review round 1, R1-B4): the string `gate_open`
+     occurs 0 times in the release executable (`grep -c`), and at least once in the gate
+     build's, which shows that the search can find it.
 
   **E. The `stream:` scheme**
   1. **Launches:** 20 cold launches, each loading `frames.mp4` through `gate_open`. The
      file loads 20/20. Recorded: first presented frame after `src` is set.
   2. **Probe,** by `fetch()` from the app's page against `frames.mp4` (all asserted):
      `bytes=a-b`, `bytes=a-` and `bytes=-n` give 206 with the right bytes and
-     `Content-Range`; a range over 1 MiB gives exactly its first 1 048 576 bytes; a bad,
-     out-of-range or multi-range header gives 416 with `bytes */len`; `HEAD` gives 200
-     with the length; no `Range` gives 206 of the first 1 MiB; a path never opened gives
+     `Content-Range`; a bad, out-of-range or multi-range header gives 416 with
+     `bytes */len`; `HEAD` gives 200 with the length. Three probes that need a file over
+     1 MiB run against the large file of E.4, opened through `gate_open` (review round 1,
+     R1-B2; `frames.mp4` is 52 036 bytes): `bytes=0-2097151` and `bytes=0-` each give
+     exactly 1 048 576 bytes with `Content-Range: bytes 0-1048575/<len>`, and no `Range`
+     gives the same 206. A path never opened gives
      **403**, and an opened path deleted afterwards gives 404. Every answer, 403, 404
      and 416 included, carries `Access-Control-Allow-Origin`, so the page sees each
      status rather than "Load failed".
@@ -929,10 +974,13 @@ Drafted 2026-09-29 from `idea.md` ("Agreed for Phase 2") and two spikes on branc
      2 s (50/50). The app process's peak RSS stays under 300 MB, which shows that the
      handler does not hold the file. Recorded: first frame; seek to `seeked`; seek to
      the target frame; peak RSS of the app and WebContent processes.
-  5. **The log:** `stream.log` has one line per request of E.1–E.4, and no panic line.
+  5. **The log:** `stream.log` has a line for every E.2 probe, with its status; lines
+     for the loads of E.1, E.3 and E.4; and no panic line (review round 1, R1-N4: nothing
+     counts WebKit's own range requests independently).
 
-  **F. Phase 1's gates in the app.** Parts A, B, C(b) and C(c) of Phase 1, unchanged in
-  `test/e2e/gate.ts`, with each file loaded through `gate_open`. **27 repetitions,
+  **F. Phase 1's gates in the app.** Parts A, B, C(b) and C(c) of Phase 1, with their
+  steps unchanged in `test/e2e/gate.ts`, run with `browser: 'app'` and each file loaded
+  through `gate_open` (§2.12). **27 repetitions,
   that is, 108 gate runs.**
   - *Why 27:* OQ-8's stuck seek came in 1 of 36 gate runs. If it still happens at that
     rate, 108 runs miss it with probability (35/36)^108 = 4.8%. So the gate sees it with
@@ -943,7 +991,10 @@ Drafted 2026-09-29 from `idea.md` ("Agreed for Phase 2") and two spikes on branc
     right frame fails. That extends Phase 1's Safari rule, which accepted flagged reads
     only in B.3 and C(b), to A, because A.3's seek is also a long paused seek, and 108
     runs make a stale A.3 likely if the app is stale as often as Safari. When the warning
-    shows, the readout's text is the §2.11 wording.
+    shows, the readout's text is the §2.11 wording. This is the `'app'` read rule in
+    `gate.ts` (review round 1, R1-B1). Today `readAt` accepts a flagged wrong read only
+    where `allowStale` is set (B.3 and C(b), in Safari), and it lets a flag on a right
+    frame pass outside Chrome.
   - **Any stuck seek fails the gate** (§2.12; kept by the orchestrator's decision,
     2026-09-29, see OQ-8). The build then stops, with the stuck
     seek's `stream.log` lines, for the user's decision (OQ-8).
@@ -951,19 +1002,36 @@ Drafted 2026-09-29 from `idea.md` ("Agreed for Phase 2") and two spikes on branc
     `data-counter` is `batched`.
 
   **G. Stale soak (the rate is recorded; the warning is gated).** Spike 1's 3a sequence
-  in the app: `frames60ms.mp4`, play until `d` snaps, pause, seek to `100.5/60`, read the
-  pixels at 300 ms and at 2 s. Two sets of 50.
+  in the app, as the `stale` suite of `spike/run.ts` on branch `spike/vpa-tauri-webkit` ran it (the C(b) sequence): `frames60ms.mp4`,
+  play, at about 0.5 s drag the seek bar to 0, play until `d` snaps, pause, seek to
+  `100.5/60`, and read the pixels 300 ms and 2 s **after that seek's `seeked`**. Two sets
+  of 50. That matches Safari's 12/96, so the two rates can be compared (review round 1,
+  R1-N3).
   - Gated: the warning is exact. It fires in every run whose picture is stale at 300 ms,
     and in no run whose picture is right.
   - Recorded: the stale rate per set, how many heal by 2 s, and the time from `seeked`
     to the target's callback in the runs that are not stale.
 
-  **H. File open** (the release app, not the gate build, registered with `lsregister -f`)
+  **H. File open.** *(Review round 1, R1-B4.)* H.1–H.2 are measured, so they run on the
+  gate build, registered with `lsregister -f`. Its file-open path is the release one:
+  the feature adds only the agent, the log and `gate_open` (§2.12), and these steps never
+  call `gate_open`. H.3–H.5 are by hand, on the release app. *(R2-N1.)* Both builds
+  write the same `.app` path and share one bundle id, so the gate build is built with
+  its own `--target-dir` (`src-tauri/target-gate`). Only one of the two apps is
+  registered with LaunchServices at a time: the gate build for H.1–H.2, then it is
+  unregistered (`lsregister -u`) and the release app registered for H.3–H.4. D.4
+  compares the two executables from their two target dirs.
   1. **"Open with", cold**, driven by `open -a <app> <file>`, which sends Finder's
-     open-documents event: 5 runs. The app starts, and `frames60ms.mp4` plays and snaps.
-     Recorded: `open` to the first presented frame.
-  2. **"Open with", running**, with `frames.mp4` already loaded: 5 runs. The same process
-     loads `frames60ms.mp4`, the player resets, and it snaps. No second process.
+     open-documents event: 5 runs. The app starts, and `frames60ms.mp4` loads through
+     `RunEvent::Opened`. The agent's hello passes the §2.12 check, then the runner
+     starts playback (nothing plays on the user's behalf, §2.3) and asserts that `d`
+     snaps to exactly `1/60`. Recorded: `open` to the first presented frame, from the
+     `open` call on the runner's clock to the agent's first frame callback, with the
+     agent's time converted to the runner's clock via `performance.timeOrigin`.
+  2. **"Open with", running**, with `frames.mp4` already loaded and snapped: 5 runs,
+     `open -a <app> frames60ms.mp4`. Asserted: the same process (the pid before and after
+     is the same, and `pgrep` finds one), the readout resets (step disabled, "measuring
+     frame rate…"), and after the runner starts playback `d` snaps to exactly `1/60`.
   3. **The dialog, by hand:** "Open mp4…" shows the system dialog filtered to mp4. The
      picked file plays, and `.` steps it.
   4. **Double-click, by hand:** follow the README's "Change All…", then double-click an
@@ -971,11 +1039,17 @@ Drafted 2026-09-29 from `idea.md` ("Agreed for Phase 2") and two spikes on branc
      Afterwards, restore the tester's own default mp4 player.
   5. **First launch of the downloaded release, by hand:** download the `.dmg` from the
      `v0.2.0` release, install, and open. Gatekeeper blocks it; the README's steps get
-     past that, and a file then opens and steps.
+     past that, and a file then opens and steps. If macOS says the app "is damaged"
+     rather than offering "Open Anyway", the README's steps include
+     `xattr -dr com.apple.quarantine` on the app (review round 1, R1-N10). Recorded:
+     which of the two macOS showed.
 
-  **W. The web build still works.** `src/` and `index.html` changed, so Phase 1's gate
-  runs once, unchanged, in Chrome and in Safari (§2.6), with Phase 1's pass rules: no
-  `data-stale="true"` anywhere in Chrome, and the new wording when it shows in Safari.
+  **W. The web build still works.** `src/`, `index.html` and `gate.ts` changed, so Phase
+  1's gate runs once in Chrome and in Safari (§2.6), with its steps unchanged and Phase
+  1's pass rules (`browser: 'chrome'` and `'safari'`): no `data-stale="true"` anywhere in
+  Chrome, and in Safari a flagged wrong read accepted only in B.3 and C(b). The one
+  added check is the wording: wherever `data-stale="true"` shows, the readout has the
+  §2.11 text.
   After the merge, the Chrome run repeats A.1–A.4 against the deployed Pages URL.
 
   **Not in the gate:** Windows and Linux, which are built (D.2) and not run (OQ-6,
