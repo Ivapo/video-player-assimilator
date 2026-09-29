@@ -50,11 +50,18 @@ export const HELPERS = String.raw`
       }
       return n;
     },
-    // Wait for data-frame to hold k and no seek to be pending, then one frame callback or
-    // 100 ms (the clamp case), then read the pixels.
-    async settleRead(k) {
+    // The latest presented frame's mediaTime since the last seek started (null: none yet).
+    presented: null,
+    // Wait for data-frame to hold k and no seek to be pending. Then wait for a frame callback
+    // showing frame k, round(mediaTime·fps) = k, ignoring callbacks for any other frame (a
+    // registration from before the seek can fire for the old frame), or up to 1 s if none
+    // comes (the clamp case, where the frame on screen does not change). Then read.
+    async settleRead(k, fps) {
       await G.waitFor(() => ro().dataset.frame === String(k) && ro().dataset.pending === 'false', 'frame ' + k);
-      await Promise.race([new Promise((r) => video().requestVideoFrameCallback(r)), G.sleep(100)]);
+      const t0 = performance.now();
+      while (!(G.presented !== null && Math.round(G.presented * fps) === k) && performance.now() - t0 < 1000) {
+        await G.sleep(2);
+      }
       return G.readFrame();
     },
     // A script seek, as the gate's "Seek to t": set currentTime and wait for seeked.
@@ -76,6 +83,10 @@ export const HELPERS = String.raw`
     },
   };
   window.__gate = G;
+  const v = video();
+  v.addEventListener('seeking', () => { G.presented = null; });
+  const onFrame = (_now, meta) => { G.presented = meta.mediaTime; v.requestVideoFrameCallback(onFrame); };
+  v.requestVideoFrameCallback(onFrame);
   document.addEventListener('play', () => { if (G.playT0 === null) G.playT0 = performance.now(); }, true);
   new MutationObserver(() => {
     const d = ro().dataset;
@@ -122,16 +133,16 @@ async function pause(drv: Driver) {
 
 async function seekTo(drv: Driver, frameMid: number, fps: number, expectK: number) {
   await drv.run(`await G.seek(${frameMid}/${fps})`);
-  const got = await drv.run<number>(`return G.settleRead(${expectK})`);
+  const got = await drv.run<number>(`return G.settleRead(${expectK}, ${fps})`);
   check(got === expectK, `seek to ${frameMid}/${fps}: pixels read ${got}, expected ${expectK}`);
 }
 
 /** One key, wait, read; the pixels must show `expect`. Returns the list of reads. */
-async function stepAndRead(drv: Driver, key: '.' | ',', expected: number[], label: string) {
+async function stepAndRead(drv: Driver, key: '.' | ',', expected: number[], fps: number, label: string) {
   const reads: number[] = [];
   for (const k of expected) {
     await drv.key(key);
-    const got = await drv.run<number>(`return G.settleRead(${k})`);
+    const got = await drv.run<number>(`return G.settleRead(${k}, ${fps})`);
     reads.push(got);
     check(got === k, `${label}: after a '${key}' expected frame ${k}, pixels read ${got}`);
   }
@@ -160,11 +171,11 @@ export async function gateA(drv: Driver) {
   await pause(drv);
   await seekTo(drv, 10.5, 30, 10);
   // A.4
-  await stepAndRead(drv, '.', [11, 12, 13, 14, 15], 'A.4 forward');
-  await stepAndRead(drv, ',', [14, 13, 12, 11, 10, 9, 8], 'A.4 back');
+  await stepAndRead(drv, '.', [11, 12, 13, 14, 15], 30, 'A.4 forward');
+  await stepAndRead(drv, ',', [14, 13, 12, 11, 10, 9, 8], 30, 'A.4 back');
   // A.5
   await seekTo(drv, 0.5, 30, 0);
-  await stepAndRead(drv, ',', [0], 'A.5 clamp at 0');
+  await stepAndRead(drv, ',', [0], 30, 'A.5 clamp at 0');
   d = await data(drv);
   return { snap };
 }
@@ -185,13 +196,13 @@ export async function gateB(drv: Driver) {
   // B.3
   await pause(drv);
   await seekTo(drv, 10.5, 60, 10);
-  await stepAndRead(drv, '.', range(11, 51), 'B.3');
+  await stepAndRead(drv, '.', range(11, 51), 60, 'B.3');
   // B.4
   await seekTo(drv, 250.5, 60, 250);
-  await stepAndRead(drv, ',', range(210, 250).reverse(), 'B.4');
+  await stepAndRead(drv, ',', range(210, 250).reverse(), 60, 'B.4');
   // B.5
   await seekTo(drv, 299.5, 60, 299);
-  await stepAndRead(drv, '.', [299], 'B.5 clamp at last');
+  await stepAndRead(drv, '.', [299], 60, 'B.5 clamp at last');
   d = await data(drv);
   return { at1s, snap };
 }
@@ -221,7 +232,7 @@ export async function gateCb(drv: Driver) {
   check(!d.ended, 'C(b): clip ended before the snap');
   await pause(drv);
   await seekTo(drv, 100.5, 60, 100);
-  await stepAndRead(drv, '.', [101, 102, 103], 'C(b)');
+  await stepAndRead(drv, '.', [101, 102, 103], 60, 'C(b)');
   return { snap };
 }
 
@@ -264,7 +275,7 @@ export async function gateCc(drv: Driver) {
     await assertSnapped(drv, 120, 'C(c)');
     outcome = 'snapped-1/120';
     await seekTo(drv, 100.5, 120, 100);
-    await stepAndRead(drv, '.', range(101, 111), 'C(c)');
+    await stepAndRead(drv, '.', range(101, 111), 120, 'C(c)');
   }
   if (drv.browser === 'chrome' && hz > 55 && hz < 65) {
     check(outcome === 'not-supported', `C(c): Chrome at ${hz.toFixed(1)} Hz must refuse; it ${outcome}`);

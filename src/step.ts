@@ -52,8 +52,13 @@ export interface EstimateState {
   capReached: boolean;
 }
 
-/** Gaps of this size or less are ignored. */
-const MIN_GAP = 0.001;
+/**
+ * Gaps shorter than this are ignored: 1/240 s, the shortest frame of any candidate rate,
+ * less 1 ms for whole-ms timestamps (a 240 fps whole-ms file has 4 ms gaps). Phase 1
+ * supports rates up to the display's, and no candidate is faster than 240 fps, so a
+ * shorter gap is not a frame (amended at the build, from 1 ms).
+ */
+export const MIN_GAP = 1 / 240 - 0.001;
 /** No snap, and no enable at the cap, before this many counted gaps (R7-B2). */
 const MIN_GAPS = 10;
 /** The cap: this much counted playback, s. */
@@ -100,6 +105,8 @@ function onGrid(t: number, q: number): boolean {
 
 interface Run {
   id: number;
+  /** False until the run's second callback: the first only starts the run. */
+  primed: boolean;
   /** The counted anchor: the last callback that was not ignored. */
   lastTime: number;
   firstFrames: number | null;
@@ -139,6 +146,7 @@ export class Estimator {
       this.closeRun();
       this.run = {
         id: s.runId,
+        primed: false,
         lastTime: s.mediaTime,
         firstFrames: s.totalVideoFrames,
         lastFrames: s.totalVideoFrames,
@@ -148,8 +156,16 @@ export class Estimator {
       };
       return false;
     }
+    if (!run.primed) {
+      // The gap from a run's first callback is never counted: after a seek, that callback
+      // can report a position that is not a presented frame. The second callback anchors.
+      run.primed = true;
+      run.lastTime = s.mediaTime;
+      run.firstFrames = run.lastFrames = s.totalVideoFrames;
+      return false;
+    }
     const g = s.mediaTime - run.lastTime;
-    if (g <= MIN_GAP) return false; // ignored; the anchor stays, so S telescopes
+    if (g < MIN_GAP) return false; // ignored; the anchor stays, so S telescopes
 
     if (!run.counted) {
       run.counted = true;
@@ -317,6 +333,7 @@ type FrameCallbackVideo = HTMLVideoElement & {
   requestVideoFrameCallback?: (
     cb: (now: number, meta: { mediaTime: number }) => void,
   ) => number;
+  cancelVideoFrameCallback?: (handle: number) => void;
 };
 
 export class StepController {
@@ -339,6 +356,13 @@ export class StepController {
   private lastMediaTime = NaN;
   /** Set between the player's own pause() and its `pause` event. */
   private ownPauseEvent = false;
+  /**
+   * The frame-callback registration. A seek cancels it and `seeked` registers a fresh one;
+   * a callback whose generation is not current (one that fires although cancelled, for the
+   * pre-seek frame) is ignored.
+   */
+  private frameGen = 0;
+  private frameHandle: number | null = null;
 
   constructor(video: HTMLVideoElement, onChange: () => void) {
     this.video = video as FrameCallbackVideo;
@@ -348,7 +372,10 @@ export class StepController {
     this.est = new Estimator(this.hasQuality);
 
     video.addEventListener('seeked', () => this.onSeeked());
-    video.addEventListener('seeking', () => this.endRun());
+    video.addEventListener('seeking', () => {
+      this.endRun();
+      this.unwatchFrames();
+    });
     video.addEventListener('pause', () => this.onPause());
     video.addEventListener('ended', () => this.onEnded());
     video.addEventListener('play', () => {
@@ -357,7 +384,7 @@ export class StepController {
       this.onChange();
     });
     video.addEventListener('loadedmetadata', () => this.onChange());
-    if (!this.noCallback) this.video.requestVideoFrameCallback!(this.onFrame);
+    this.watchFrames();
   }
 
   /** Reset on a new file: call in the same task, before the new `src` is set. */
@@ -372,6 +399,8 @@ export class StepController {
     this.est = new Estimator(this.hasQuality);
     this.runId++;
     this.lastMediaTime = NaN;
+    // A file arriving mid-seek never fires that seek's `seeked`: register afresh.
+    this.watchFrames();
     this.onChange();
   }
 
@@ -480,9 +509,23 @@ export class StepController {
     this.runId++;
   }
 
+  private watchFrames(): void {
+    if (this.noCallback) return;
+    this.unwatchFrames();
+    const gen = this.frameGen;
+    this.frameHandle = this.video.requestVideoFrameCallback!((_now, meta) => this.onFrame(gen, meta));
+  }
+
+  private unwatchFrames(): void {
+    if (this.frameHandle !== null) this.video.cancelVideoFrameCallback?.(this.frameHandle);
+    this.frameHandle = null;
+    this.frameGen++;
+  }
+
   private onSeeked(): void {
     // A newer seek is in flight; wait for its `seeked`.
     if (this.video.seeking) return;
+    this.watchFrames();
     this.pending = false;
     const d = this.d();
     if (d !== null && Number.isFinite(this.video.duration)) {
@@ -516,8 +559,10 @@ export class StepController {
     this.onChange();
   }
 
-  private onFrame = (_now: number, meta: { mediaTime: number }): void => {
-    this.video.requestVideoFrameCallback!(this.onFrame);
+  private onFrame(gen: number, meta: { mediaTime: number }): void {
+    // A cancelled registration that still fires: its frame is from before the seek.
+    if (gen !== this.frameGen) return;
+    this.watchFrames();
     this.lastMediaTime = meta.mediaTime;
     // A run is a stretch of playback: frames presented while paused (after a seek) are not
     // part of one.
@@ -532,7 +577,7 @@ export class StepController {
       if (changed) this.kValid = false;
     }
     this.onChange();
-  };
+  }
 }
 
 function clamp(x: number, lo: number, hi: number): number {

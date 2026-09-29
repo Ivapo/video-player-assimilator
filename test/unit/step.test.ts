@@ -14,9 +14,13 @@ function stream(fps: number, frames: number[], round: (t: number) => number, run
 }
 
 const range = (from: number, to: number) => Array.from({ length: to - from }, (_, i) => from + i);
-/** Frames 0..count-1 with the callback for frame 1 removed: the first gap is doubled. */
-const firstGapDoubled = (count: number) => range(0, count).filter((f) => f !== 1);
-/** Frames 0..count-1 with frames 4–9 removed: gap 3 (from frame 3) covers 7 frames. */
+/**
+ * A run's first callback only starts it, and the second anchors it, so the first counted
+ * gap runs from the second callback (frame 1).
+ */
+/** Frames 0..count-1 with the callback for frame 2 removed: the first counted gap is doubled. */
+const firstGapDoubled = (count: number) => range(0, count).filter((f) => f !== 2);
+/** Frames 0..count-1 with frames 4–9 removed: counted gap 3 (from frame 3) covers 7 frames. */
 const sevenSkipAtGap3 = (count: number) => range(0, count).filter((f) => f < 4 || f > 9);
 
 /** Run a stream, recording every state, and the first sample index at which it snapped. */
@@ -73,7 +77,8 @@ describe('C(a) — no wrong snap from an early skipped frame (R7-B2)', () => {
     const est = new Estimator(true);
     const d = 1 / 30;
     const s = (f: number): Sample => ({ mediaTime: usRound(f * d), totalVideoFrames: f, runId: 0 });
-    est.push(s(0));
+    est.push(s(0)); // the run's first callback only starts the run
+    est.push(s(0)); // anchors
     est.push(s(2));
     expect(est.state().N).toBe(1);
     expect(est.state().dMin).toBeCloseTo(2 * d, 5);
@@ -166,15 +171,25 @@ describe('the cap', () => {
 });
 
 describe('runs', () => {
-  it('a gap across runs never counts, and gaps of 1 ms or less are ignored', () => {
+  it('a gap across runs never counts, nor does the gap from a run\'s first callback', () => {
+    // 5 callbacks per run: the first starts it, the second anchors, 3 gaps count.
     const a = stream(30, range(0, 5), usRound, 0);
     const b = stream(30, range(50, 55), usRound, 1);
-    const dup = { ...a[4], mediaTime: a[4].mediaTime + 0.0005 };
-    const s = estimate([...a, dup, ...b]);
-    expect(s.gaps).toBe(8);
-    expect(s.N).toBe(8);
+    const s = estimate([...a, ...b]);
+    expect(s.gaps).toBe(6);
+    expect(s.N).toBe(6);
     expect(s.R).toBe(2);
-    expect(s.deltaT).toBe(8);
+    expect(s.deltaT).toBe(6);
+  });
+
+  it('gaps shorter than 1/240 s − 1 ms are ignored; a whole-ms 240 fps gap (4 ms) is not', () => {
+    const a = stream(30, range(0, 5), usRound, 0);
+    const short = { ...a[4], mediaTime: a[4].mediaTime + 0.00208 }; // the Safari 2.08 ms
+    expect(estimate([...a, short]).gaps).toBe(3);
+    const four = { ...a[4], mediaTime: a[4].mediaTime + 0.004 };
+    expect(estimate([...a, four]).gaps).toBe(4);
+    // Whole-ms 240 fps (gaps of 4 and 5 ms) snaps to exactly 1/240.
+    expect(estimate(stream(240, range(0, 2000), msRound)).d).toBe(1 / 240);
   });
 });
 
@@ -187,10 +202,12 @@ describe('amended R7-B1 — a batched totalVideoFrames counter (Safari 26.6.2)',
   const safari60 = (): Sample[] =>
     range(1, 300).map((f) => ({ mediaTime: msRound(f / 60), totalVideoFrames: safariCounter60(f), runId: 0 }));
 
-  it('reproduces the build failure: at 10 gaps ΔT = 18 against N = 10', () => {
+  it('the build failure: at 10 gaps ΔT is far from N, so a per-frame check would refuse', () => {
+    // Under the first-callback rule the 1 → 19 jump falls before the anchor, and the
+    // counter then holds: ΔT = 0 against N = 10.
     const { states } = trace(safari60());
     const at10 = states.find((s) => s.gaps === 10)!;
-    expect(at10.deltaT).toBe(18);
+    expect(at10.deltaT).toBe(0);
     expect(at10.N).toBe(10);
     // Outside the band 0.1·N + 3·R = 4 — the per-frame check would refuse here.
     expect(Math.abs(at10.deltaT! - at10.N)).toBeGreaterThan(0.1 * at10.N + 3 * at10.R);
@@ -200,7 +217,7 @@ describe('amended R7-B1 — a batched totalVideoFrames counter (Safari 26.6.2)',
     const { states, final, firstSnap } = trace(safari60());
     const decided = states.findIndex((s) => s.counter !== 'unknown');
     expect(states[decided].counter).toBe('batched');
-    expect(states[decided].gaps).toBe(9); // gap 1 moved (1 → 19), gaps 2–9 held
+    expect(states[decided].gaps).toBe(8); // counted gaps 1–8 all held at 19
     expect(states.every((s) => s.status !== 'unsupported')).toBe(true);
     expect(states[firstSnap].N).toBe(134);
     expect(final.d).toBe(1 / 60);
@@ -238,10 +255,10 @@ describe('amended R7-B1 — a batched totalVideoFrames counter (Safari 26.6.2)',
   });
 
   it('until the mode is known, nothing snaps, nothing is refused, and the cap does not enable', () => {
-    // Runs of 5 gaps: neither 8 advancing nor 8 flat gaps ever fall in one run.
+    // Runs of 4 counted gaps: neither 8 advancing nor 8 flat gaps ever fall in one run.
     const samples = range(0, 6).flatMap((r) => stream(30, range(r * 10, r * 10 + 6), usRound, r));
     const final = estimate(samples, { ended: true });
-    expect(final.gaps).toBe(30);
+    expect(final.gaps).toBe(24);
     expect(final.counter).toBe('unknown');
     expect(final.status).toBe('measuring');
     expect(final.d).toBeNull();
