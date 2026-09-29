@@ -86,11 +86,13 @@ Frames are numbered from 0: with frame duration `d`, frame `k` covers
     the life of the video. Each call records the presented frame's `mediaTime` as
     `lastMediaTime`.
     - **Across a seek** (amended at the build by the user's decision, without a review
-      round; the gate verifies it). On `seeking`, the player cancels the pending
-      registration, and it registers a fresh one at `seeked` and on a new file. Each
-      registration carries a generation number, and a callback whose generation is not
-      the current one is ignored. That covers a cancelled registration that still fires,
-      for the pre-seek frame. Why: in one Safari run the estimate was enabled uncertain
+      round; the gate verifies it). At `seeked` and on a new file, the player replaces
+      its registration with a fresh one. Each registration carries a generation number,
+      and a callback whose generation is not the current one is ignored. That covers a
+      replaced registration that still fires, for a pre-seek frame. (A cancel at
+      `seeking` was specified at first and then removed at the build as redundant: the
+      replacement at `seeked` and the first-callback rule below already cover every
+      order the build tested, and no test failed without it.) Why: in one Safari run the estimate was enabled uncertain
       with `d` = 2.08 ms, from a counted gap far shorter than a frame. The build could not
       tell from its logs where that gap came from. A pre-seek callback is the suspected
       source.
@@ -116,7 +118,18 @@ Frames are numbered from 0: with frame duration `d`, frame `k` covers
     `n_g = round(g / d_min)` frames, where a skipped callback makes `n_g` ≥ 2. The player
     stores every counted gap. **Whenever `d_min` drops, it recounts `n_g` for every
     stored gap** against the new `d_min`, so `N` is never a running total built on an
-    older, larger `d_min`. The count is exact while every gap is within half a frame of
+    older, larger `d_min`.
+    - **Long gaps** (amended at the build by the user's decision, without a review
+      round; the gate verifies it). A gap longer than **7 × `d_min`** is not counted,
+      because beyond that `round(g / d_min)` is no longer exact. The recount checks this
+      again whenever `d_min` drops, so a gap counted under a larger `d_min` can stop
+      counting. An uncounted gap ends a **segment**: `S` no longer telescopes across it,
+      so in `ε = R·E/N` below, `R` is the number of segments that hold a counted gap,
+      where a run is split at every gap that is not counted. `ΔT` for the cross-check is
+      the sum of the counter's change over the counted gaps only.
+    - Why: in one Safari run, playback stalled to about 3 frames per callback, with
+      some gaps of more than 7 frames. `N` was overcounted, nothing snapped, and at
+      `ended` the cap enabled step with `d` = 16.199 ms against 16.667. The count is exact while every gap is within half a frame of
     a whole number of `d_min`s. With whole-ms timestamps at 60 fps, that holds for skips
     of up to 7 frames. At most 30 s × 240 fps = 7 200 gaps are stored before the cap.
   - **The estimate.** `d_est = S / N`, where `S` is the sum of the counted gaps and `N`
