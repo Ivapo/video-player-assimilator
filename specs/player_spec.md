@@ -85,10 +85,31 @@ Frames are numbered from 0: with frame duration `d`, frame `k` covers
   - **Collecting gaps.** The player keeps one `requestVideoFrameCallback` registered for
     the life of the video. Each call records the presented frame's `mediaTime` as
     `lastMediaTime`.
+    - **Across a seek** (amended at the build by the user's decision, without a review
+      round; the gate verifies it). On `seeking`, the player cancels the pending
+      registration, and it registers a fresh one at `seeked` and on a new file. Each
+      registration carries a generation number, and a callback whose generation is not
+      the current one is ignored. That covers a cancelled registration that still fires,
+      for the pre-seek frame. Why: in one Safari run the estimate was enabled uncertain
+      with `d` = 2.08 ms, from a counted gap far shorter than a frame. The build could not
+      tell from its logs where that gap came from. A pre-seek callback is the suspected
+      source.
   - **Counted gaps.** Only a gap between two consecutive callbacks within one **run**
     counts: a stretch of playback with no pause, seek or `ended` in between. Each of
-    those events ends the current run, and the next callback starts a new one. A gap of
-    1 ms or less is ignored.
+    those events ends the current run, and the next callback starts a new one.
+    - **The first callback of a run only starts it** (amended at the build). Its gap to
+      the previous run's last callback is never counted, and neither is the gap from it
+      to the next callback. The run's second callback is its first anchor. After a seek,
+      the first callback can report a position that is not a presented frame.
+    - **The floor** (amended at the build, from 1 ms). A gap shorter than
+      **1/240 s − 1 ms** (3.17 ms) is ignored. Phase 1 supports rates up to the
+      display's, and no candidate rate is faster than 240 fps, so no frame of a
+      supported file is shorter than 1/240 s. The 1 ms allowance is for whole-ms
+      timestamps: a whole-ms 240 fps file has gaps of 4 ms, which a floor of exactly
+      1/240 s would drop.
+    - There is deliberately no filter for gaps much shorter than `d_min`. It would
+      conflict with the R7-B2 recount, which lowers `d_min` on purpose when a shorter
+      real gap arrives.
   - **`d_min`.** It is the smallest counted gap seen so far, used only as a unit for
     counting frames.
   - **Frames per gap** (round 7, R7-B2). A counted gap `g` covers
@@ -526,8 +547,12 @@ step it frame by frame.*
 
   "Read" means the pixel bit-strip decode (§2.6). The test sends one key and waits for
   the readout's `data-frame` to hold the expected index and for no seek to be pending.
-  Then it waits one `requestVideoFrameCallback` on its own side, or 100 ms if none fires
-  (the clamp case), before it reads the pixels. The Chrome run then repeats A.1–A.4
+  Then it waits on its own side for a `requestVideoFrameCallback` that shows the target
+  frame, `round(mediaTime · fps) = k`, and ignores callbacks for any other frame. If none
+  comes within 1 s (the clamp case, where the frame on screen does not change), it goes
+  on. Then it reads the pixels. (Amended at the build by the user's decision: it used to
+  wait for any one callback, or 100 ms. A callback registered before a seek can fire
+  after it for the old frame, which released the read too early.) The Chrome run then repeats A.1–A.4
   against the deployed Pages URL, which proves the deploy serves the working player and
   not just a page.
 - **Manual one-time setup** (not code): install `ffmpeg-full`; enable Pages with source
