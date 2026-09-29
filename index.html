@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Video Player — Assimilator</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <main id="drop">
+      <header>
+        <h1>Video Player</h1>
+        <label class="pick">
+          Open mp4…
+          <input id="file" type="file" accept="video/mp4" />
+        </label>
+        <span id="name" class="name">or drop a file here</span>
+      </header>
+
+      <video id="video" playsinline preload="auto"></video>
+
+      <div class="controls">
+        <button id="play" type="button" disabled>Play</button>
+        <input id="seek" type="range" min="0" max="0" step="any" value="0" disabled aria-label="Seek" />
+        <button id="back" type="button" disabled title="Previous frame (, or ←)">◀ Frame</button>
+        <button id="fwd" type="button" disabled title="Next frame (. or →)">Frame ▶</button>
+      </div>
+
+      <div
+        id="readout"
+        class="readout"
+        data-frame="0"
+        data-media-time=""
+        data-d-ms=""
+        data-d-snapped="false"
+        data-pending="false"
+      ></div>
+      <p class="note">Steps assume a constant frame rate</p>
+      <p class="keys">Keys: <kbd>.</kbd>/<kbd>→</kbd> next frame · <kbd>,</kbd>/<kbd>←</kbd> previous frame · <kbd>space</kbd> play/pause</p>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
