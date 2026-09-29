@@ -149,7 +149,36 @@ Frames are numbered from 0: with frame duration `d`, frame `k` covers
       figure is stated from memory and is for the build to confirm. `0.1·N` allows 10%
       proportional slack. The failure it guards against is a ratio `ΔT/N` of 2 or more,
       so a 10% band is far from both a correct count (ratio 1) and the failure. At
-      N = 10 and R = 1 the band is ±4 frames, while a 2× file differs by 10.
+      N = 10 and R = 1 the band is ±4 frames, while a 2× file differs by 10. The build
+      confirmed the 3-per-run figure in Chrome: on correctly counted files `ΔT − N` was
+      0 to +3 with R = 1–2.
+    - **Per-frame or batched counter** (build finding, amended by the user's decision
+      without a review round; the gate verifies it). The check assumes the counter
+      advances with each decoded frame. Safari 26.6.2 does not. It jumps by 11–30 at the
+      start of playback (decode-ahead), then holds for about 2 s at a time. On
+      `frames60ms.mp4` that gave `ΔT` = 17–19 against `N` = 10, so every 60 fps file was
+      refused. Let `δT` be the counter's change from one counted callback to the next
+      within a run.
+      - **The rule.** The counter is **per-frame** once `δT ≥ 1` on 8 consecutive
+        counted gaps of one run. It is **batched** once `δT = 0` on 8 consecutive
+        counted gaps of one run. Whichever is seen first holds for the file, and the
+        reset on a new file clears it.
+      - **Until either is seen**, the check neither agrees nor disagrees. Nothing snaps,
+        nothing is refused, and the cap does not enable step.
+      - **Per-frame:** the check applies as above. **Batched:** the check is skipped, and
+        the estimate snaps, or enables at the cap, as it would without the guard.
+      - **Why 8** (measured at the build on a 60 Hz display, 3 runs per fixture, 2.5 s
+        each). In Chrome, `δT` was 1–2 on every gap of `frames.mp4` and `frames60ms.mp4`,
+        and 2–6 on `frames120.mp4`. It never stayed at 0 for more than 4 gaps in a row,
+        and that happened only on `frames120.mp4`, after gap 10. In Safari, `δT` was 0 on
+        at least 9 of the first 10 gaps in all 9 runs, and the runs of zeros reached
+        57–116 gaps. So 8 is twice Chrome's worst, and it is reached within Safari's
+        first 10 gaps.
+      - **Why no bound on a single `δT`.** A per-frame counter on a file faster than the
+        display moves several frames per callback: up to 6 in Chrome on 120 fps, and
+        about 4 per gap on a 240 fps file before any skip. That movement is what the
+        check exists to see. A bound low enough to catch Safari's smallest jump (11)
+        would sit close to it. And one Safari run showed no jump in its first 10 gaps.
     - **When it disagrees** (with at least 10 counted gaps): the estimate does not
       snap, estimation stops for this file, and step stays disabled. The readout says
       **"frame rate higher than this display can show; stepping not supported yet"**.
@@ -304,6 +333,9 @@ The readout shows the frame index `k`, `lastMediaTime` in seconds, and `d` in ms
 display can show" message when they apply. The readout element
 carries `data-frame`, `data-media-time`, `data-d-ms`, `data-d-snapped` and
 `data-pending` (the player's `pending` flag) attributes, which the browser test reads.
+It also carries `data-counter` (`unknown`, `per-frame` or `batched`, amended at the build)
+and the estimate's `data-n`, `data-delta-t`, `data-runs`, `data-gaps` and `data-status`,
+for the gate's measurements.
 
 Keys: `.` and right arrow step forward, `,` and left arrow step back, space plays and
 pauses. Buttons do the same.
@@ -332,6 +364,8 @@ source "GitHub Actions", is a manual step for the repo owner and is part of Phas
 generator is committed; the videos are git-ignored. Both files are 640×360 and made from
 `testsrc`, encoded with `-c:v libx264 -pix_fmt yuv420p -r <rate>`. The default encode of
 `testsrc` is yuv444p (High 4:4:4), which browsers do not decode.
+(Amended at the build: the videos, 284 KB in all, are committed too; the `.mkv`
+intermediate stays ignored.)
 
 - **`frames.mp4`**: 30 fps, 3 s, 90 frames numbered 0–89, written straight to mp4. Its
   timestamps are exact; the time base is 1/15360.
@@ -402,7 +436,10 @@ decides which.
   question:** files faster than the display presents, which Phase 1 refuses with "frame
   rate higher than this display can show; stepping not supported yet" (§2.3, round 7
   R7-B1). Stepping through such a file needs a frame source other than presented-frame
-  callbacks.
+  callbacks. **Known limitation** (build, amended R7-B1): in a browser whose
+  `totalVideoFrames` counter is batched (Safari 26.6.2 today), the cross-check is skipped,
+  so a file faster than the display rate can snap to the wrong rate, for example 120 fps
+  content presented at 60 snapping to 60.
 - **OQ-3** — The Assimilator brand name and look for this player. *(needs-input)*
 - **OQ-4** — Which extra feature comes after frame step: loop a section, speed control,
   or overlays? *(needs-input)*
@@ -482,6 +519,10 @@ step it frame by frame.*
     Any other snapped `d` fails. On a ~60 Hz display the **Chrome** run must take the
     first outcome, because round 7 measured Chrome presenting 120 fps content at 60.
     Safari presented all 120 in round 7, so it is expected to take the second.
+    **Amended at the build:** in a browser whose counter is batched (the readout's
+    `data-counter`), the test records the outcome, the snapped `d` or the refusal, and
+    asserts neither (OQ-2's known limitation). Chrome, whose counter is per-frame, keeps
+    the full assertion.
 
   "Read" means the pixel bit-strip decode (§2.6). The test sends one key and waits for
   the readout's `data-frame` to hold the expected index and for no seek to be pending.
@@ -492,9 +533,9 @@ step it frame by frame.*
 - **Manual one-time setup** (not code): install `ffmpeg-full`; enable Pages with source
   "GitHub Actions"; run `safaridriver --enable` and turn on "Allow Remote Automation".
 - **Close-out:** seed `rules/player.md` (the stack, the platform layer, the step
-  algorithm). Commit the test file generator, not the video (git-ignore
-  `test/fixtures/*.mp4`). Write `shipped` after the gate
-  passes.
+  algorithm). Commit the test file generator and the three videos, which total 284 KB
+  (amended at the build by the user's decision; they were to be git-ignored). Write
+  `shipped` after the gate passes.
 
 <!--
 The review record is a sibling file, not a section: it lives at
