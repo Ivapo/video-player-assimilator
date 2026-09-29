@@ -177,3 +177,73 @@ describe('runs', () => {
     expect(s.deltaT).toBe(8);
   });
 });
+
+describe('amended R7-B1 — a batched totalVideoFrames counter (Safari 26.6.2)', () => {
+  /**
+   * The counter as Safari reported it on frames60ms.mp4 (build log): 1 at the first callback
+   * (0.017 s), 19 from the second (decode-ahead), 135 from 1.983 s, 251 from 3.983 s.
+   */
+  const safariCounter60 = (f: number) => (f < 2 ? 1 : f < 119 ? 19 : f < 239 ? 135 : 251);
+  const safari60 = (): Sample[] =>
+    range(1, 300).map((f) => ({ mediaTime: msRound(f / 60), totalVideoFrames: safariCounter60(f), runId: 0 }));
+
+  it('reproduces the build failure: at 10 gaps ΔT = 18 against N = 10', () => {
+    const { states } = trace(safari60());
+    const at10 = states.find((s) => s.gaps === 10)!;
+    expect(at10.deltaT).toBe(18);
+    expect(at10.N).toBe(10);
+    // Outside the band 0.1·N + 3·R = 4 — the per-frame check would refuse here.
+    expect(Math.abs(at10.deltaT! - at10.N)).toBeGreaterThan(0.1 * at10.N + 3 * at10.R);
+  });
+
+  it('whole-ms 60 fps with the Safari counter: batched, never refused, snaps to exactly 1/60 at N = 134', () => {
+    const { states, final, firstSnap } = trace(safari60());
+    const decided = states.findIndex((s) => s.counter !== 'unknown');
+    expect(states[decided].counter).toBe('batched');
+    expect(states[decided].gaps).toBe(9); // gap 1 moved (1 → 19), gaps 2–9 held
+    expect(states.every((s) => s.status !== 'unsupported')).toBe(true);
+    expect(states[firstSnap].N).toBe(134);
+    expect(final.d).toBe(1 / 60);
+  });
+
+  it('30 fps µs with the Safari counter (1 → 12, then held): snaps to exactly 1/30', () => {
+    const samples = range(1, 90).map((f) => ({
+      mediaTime: usRound(f / 30),
+      totalVideoFrames: f < 2 ? 1 : f < 60 ? 12 : 65,
+      runId: 0,
+    }));
+    const final = estimate(samples);
+    expect(final.counter).toBe('batched');
+    expect(final.status).toBe('snapped');
+    expect(final.d).toBe(1 / 30);
+  });
+
+  it('known limitation (OQ-2): with a batched counter, 120 fps presented at 60 snaps to 60', () => {
+    const everyOther = range(0, 240).filter((f) => f % 2 === 0);
+    const samples = everyOther.map((f) => ({
+      mediaTime: usRound(f / 120),
+      totalVideoFrames: f === 0 ? 1 : 30,
+      runId: 0,
+    }));
+    const final = estimate(samples);
+    expect(final.counter).toBe('batched');
+    expect(final.d).toBe(1 / 60);
+  });
+
+  it('a per-frame counter is decided at 8 advancing gaps, and then the check applies', () => {
+    const { states } = trace(stream(30, range(0, 20), usRound));
+    const decided = states.findIndex((s) => s.counter !== 'unknown');
+    expect(states[decided].counter).toBe('per-frame');
+    expect(states[decided].gaps).toBe(8);
+  });
+
+  it('until the mode is known, nothing snaps, nothing is refused, and the cap does not enable', () => {
+    // Runs of 5 gaps: neither 8 advancing nor 8 flat gaps ever fall in one run.
+    const samples = range(0, 6).flatMap((r) => stream(30, range(r * 10, r * 10 + 6), usRound, r));
+    const final = estimate(samples, { ended: true });
+    expect(final.gaps).toBe(30);
+    expect(final.counter).toBe('unknown');
+    expect(final.status).toBe('measuring');
+    expect(final.d).toBeNull();
+  });
+});

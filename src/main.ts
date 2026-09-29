@@ -72,6 +72,7 @@ function render(): void {
   data.runs = String(est.R);
   data.deltaT = est.deltaT === null ? '' : String(est.deltaT);
   data.quantum = String(est.E);
+  data.counter = est.counter;
 }
 
 playBtn.addEventListener('click', () => player.togglePlay());

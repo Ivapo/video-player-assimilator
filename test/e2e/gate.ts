@@ -81,7 +81,7 @@ export const HELPERS = String.raw`
     const d = ro().dataset;
     if (G.snap === null && d.dSnapped === 'true') {
       G.snap = { ms: performance.now() - G.playT0, n: +d.n, deltaT: d.deltaT === "" ? null : +d.deltaT, gaps: +d.gaps, runs: +d.runs,
-        quantum: +d.quantum, mediaTime: +d.mediaTime };
+        quantum: +d.quantum, mediaTime: +d.mediaTime, counter: d.counter };
     }
   }).observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ['data-d-snapped'] });
 })();
@@ -233,13 +233,24 @@ export async function gateCc(drv: Driver) {
   const d = await data(drv);
   const measured = {
     hz,
+    counter: String(d.counter),
     status: d.status,
+    dMs: d.dMs,
     n: Number(d.n),
     deltaT: d.deltaT === '' ? null : Number(d.deltaT),
     runs: Number(d.runs),
     gaps: Number(d.gaps),
     quantum: Number(d.quantum),
   };
+  if (drv.browser === 'chrome') {
+    check(d.counter === 'per-frame', `C(c): Chrome's counter is ${d.counter}, expected per-frame`);
+  }
+  // A batched counter skips the cross-check (OQ-2 limitation): record the outcome only.
+  if (d.counter === 'batched') {
+    const outcome =
+      d.status === 'unsupported' ? 'not-supported' : d.dSnapped === 'true' ? `snapped d_ms=${d.dMs}` : d.status;
+    return { outcome, asserted: false, ...measured };
+  }
   let outcome: 'not-supported' | 'snapped-1/120';
   if (d.status === 'unsupported') {
     check(d.stepDisabled, 'C(c): unsupported but step is enabled');
@@ -258,7 +269,7 @@ export async function gateCc(drv: Driver) {
   if (drv.browser === 'chrome' && hz > 55 && hz < 65) {
     check(outcome === 'not-supported', `C(c): Chrome at ${hz.toFixed(1)} Hz must refuse; it ${outcome}`);
   }
-  return { outcome, ...measured };
+  return { outcome, asserted: true, ...measured };
 }
 
 function range(from: number, to: number): number[] {

@@ -23,6 +23,12 @@ export type EstimateStatus =
   | 'uncertain' // enabled at the cap with d = d_est; "frame rate uncertain"
   | 'unsupported'; // cross-check disagreed; estimation has stopped
 
+/**
+ * How `totalVideoFrames` moves: per decoded frame (Chrome), or in batches (Safari 26.6.2).
+ * Until one is seen, the cross-check neither agrees nor disagrees.
+ */
+export type CounterMode = 'unknown' | 'per-frame' | 'batched';
+
 export interface EstimateState {
   status: EstimateStatus;
   /** The frame duration in seconds, or null while step is disabled. */
@@ -42,6 +48,7 @@ export interface EstimateState {
   epsilon: number | null;
   /** Sum over runs of the change in totalVideoFrames; null without the API. */
   deltaT: number | null;
+  counter: CounterMode;
   capReached: boolean;
 }
 
@@ -57,6 +64,8 @@ const SNAP_MARGIN = 0.9;
 const GRID_TOLERANCE = 1e-6;
 const QUANTA = [0.1, 0.01, 0.001] as const;
 const FINEST_QUANTUM = 1e-6;
+/** Consecutive counted gaps of one run that decide the counter mode (amended R7-B1). */
+const COUNTER_RUN = 8;
 
 interface Candidate {
   d: number;
@@ -96,6 +105,9 @@ interface Run {
   firstFrames: number | null;
   lastFrames: number | null;
   counted: boolean;
+  /** Consecutive counted gaps on which the counter moved, and on which it did not. */
+  advancing: number;
+  flat: number;
 }
 
 export class Estimator {
@@ -113,6 +125,7 @@ export class Estimator {
   private closedDeltaT = 0;
   private run: Run | null = null;
   private capReached = false;
+  private counter: CounterMode = 'unknown';
 
   constructor(hasQuality: boolean) {
     this.hasQuality = hasQuality;
@@ -130,6 +143,8 @@ export class Estimator {
         firstFrames: s.totalVideoFrames,
         lastFrames: s.totalVideoFrames,
         counted: false,
+        advancing: 0,
+        flat: 0,
       };
       return false;
     }
@@ -142,6 +157,7 @@ export class Estimator {
       this.noteTime(run.lastTime);
     }
     this.noteTime(s.mediaTime);
+    this.noteCounter(run, s.totalVideoFrames);
     run.lastTime = s.mediaTime;
     run.lastFrames = s.totalVideoFrames;
 
@@ -180,6 +196,7 @@ export class Estimator {
       E: this.quantum(),
       epsilon: this.N > 0 ? (this.R * this.quantum()) / this.N : null,
       deltaT: this.deltaT(),
+      counter: this.counter,
       capReached: this.capReached,
     };
   }
@@ -188,6 +205,20 @@ export class Estimator {
     QUANTA.forEach((q, i) => {
       if (this.onQuantum[i] && !onGrid(t, q)) this.onQuantum[i] = false;
     });
+  }
+
+  /** Per-frame once it moves on 8 gaps in a row of one run; batched once it holds on 8. */
+  private noteCounter(run: Run, frames: number | null): void {
+    if (this.counter !== 'unknown' || frames === null || run.lastFrames === null) return;
+    if (frames > run.lastFrames) {
+      run.advancing++;
+      run.flat = 0;
+    } else {
+      run.flat++;
+      run.advancing = 0;
+    }
+    if (run.advancing >= COUNTER_RUN) this.counter = 'per-frame';
+    else if (run.flat >= COUNTER_RUN) this.counter = 'batched';
   }
 
   private quantum(): number {
@@ -220,8 +251,11 @@ export class Estimator {
     const dEst = this.S / this.N;
 
     if (this.hasQuality) {
+      // Until the counter's mode is known, the check neither agrees nor disagrees: hold.
+      if (this.counter === 'unknown') return false;
       const dT = this.deltaT()!;
-      if (Math.abs(dT - this.N) > 0.1 * this.N + 3 * this.R) {
+      // A batched counter cannot count frames per run: skip the check (OQ-2 limitation).
+      if (this.counter === 'per-frame' && Math.abs(dT - this.N) > 0.1 * this.N + 3 * this.R) {
         // N does not count the file's frames: the file is faster than the display presents.
         this.status = 'unsupported';
         this.d = null;
