@@ -11,3 +11,5 @@ Playback uses the browser `<video>` tag. The file stays on the user's device.
 Linux users need their own codec plugins (GStreamer).
 
 Status: idea stage. No code yet.
+
+License: MIT.
