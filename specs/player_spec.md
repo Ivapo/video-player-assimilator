@@ -4,12 +4,12 @@ title: player
 note: >
   What the player is for: the user picks an mp4 file, it plays, and the user can step it one
   frame at a time. Phase 1 is the smallest surface that produces that: a static web page.
-status: draft
+status: accepted
 last_updated: 2026-09-28
 
 phases:
   - name: "Phase 1 — Web player with frame-by-frame step"
-    reviewed: null
+    reviewed: 2026-09-28
     shipped: null
     cut: null
     by: null
@@ -91,10 +91,13 @@ Frames are numbered from 0: with frame duration `d`, frame `k` covers
     1 ms or less is ignored.
   - **`d_min`.** It is the smallest counted gap seen so far, used only as a unit for
     counting frames.
-  - **Frames per gap.** A counted gap `g` covers `n_g = round(g / d_min)` frames, where a
-    skipped callback makes `n_g` ≥ 2. The count is exact while every gap is within half
-    a frame of a whole number of `d_min`s. With whole-ms timestamps at 60 fps, that
-    holds for skips of up to 7 frames.
+  - **Frames per gap** (round 7, R7-B2). A counted gap `g` covers
+    `n_g = round(g / d_min)` frames, where a skipped callback makes `n_g` ≥ 2. The player
+    stores every counted gap. **Whenever `d_min` drops, it recounts `n_g` for every
+    stored gap** against the new `d_min`, so `N` is never a running total built on an
+    older, larger `d_min`. The count is exact while every gap is within half a frame of
+    a whole number of `d_min`s. With whole-ms timestamps at 60 fps, that holds for skips
+    of up to 7 frames. At most 30 s × 240 fps = 7 200 gaps are stored before the cap.
   - **The estimate.** `d_est = S / N`, where `S` is the sum of the counted gaps and `N`
     is the sum of their `n_g`. `S` telescopes to the sum of each run's span, from its
     first callback to its last. So `S` is off by at most `2·(E/2)` per run from rounded
@@ -117,23 +120,58 @@ Frames are numbered from 0: with frame duration `d`, frame `k` covers
   - **The rule.** Let `c` be the candidate duration nearest to `d_est`, and let `gap(c)`
     be the distance from `c` to the nearest *other* candidate. The estimate snaps when
     both hold:
-    - it is unambiguous: `ε < gap(c) / 2`;
-    - it fits: `|d_est − c| ≤ ε`.
+    - there are at least **10 counted gaps** (R7-B2);
+    - it is unambiguous with margin: `ε ≤ 0.9 · gap(c) / 2` (R7-N1). The 10% margin
+      means a tie such as `N = 120` at 60 fps whole-ms, where `ε` equals `gap/2`
+      exactly, is never decided by floating point;
+    - it fits: `|d_est − c| ≤ ε`;
+    - the frame-count cross-check agrees (below).
 
     Then `d = c` exactly, `1/n` or `1001/(1000·n)`, and estimation stops. Because the
     true duration is within `ε` of `d_est`, and every other candidate is more than `ε`
-    from it, a snapped `d` is the file's own rate.
+    from it, a snapped `d` is the file's own rate. That holds *provided* `N` counts the
+    file's frames, which is what the cross-check guards.
+  - **Frame-count cross-check** (round 7, R7-B1).
+    - **Why it is needed.** `requestVideoFrameCallback` fires at most once per
+      *presented* frame. When the file's rate is at least twice what the browser
+      presents, no gap is a single frame. `d_min` is then a multiple of the true
+      duration, and the snap is confidently wrong. Round 7 measured this on a 60 Hz
+      display: Chrome snapped 120 fps to 60, and both browsers snapped whole-ms 300 fps
+      to 100. Below 2× the presented rate, some gaps are single frames, so `d_min` and
+      `N` stay right.
+    - **The check.** At each callback of a run, the player reads
+      `video.getVideoPlaybackQuality().totalVideoFrames`, which counts decoded frames
+      including dropped ones. `ΔT` is the sum, over runs, of that count at the run's
+      last callback minus its count at the run's first. Snapping, and enabling at the
+      cap, require `|ΔT − N| ≤ 0.1·N + 3·R`.
+    - **The tolerance.** `3·R` allows up to 3 frames per run of skew between when a
+      frame is counted (at decode, which runs ahead) and when it is presented. That
+      figure is stated from memory and is for the build to confirm. `0.1·N` allows 10%
+      proportional slack. The failure it guards against is a ratio `ΔT/N` of 2 or more,
+      so a 10% band is far from both a correct count (ratio 1) and the failure. At
+      N = 10 and R = 1 the band is ±4 frames, while a 2× file differs by 10.
+    - **When it disagrees** (with at least 10 counted gaps): the estimate does not
+      snap, estimation stops for this file, and step stays disabled. The readout says
+      **"frame rate higher than this display can show; stepping not supported yet"**.
+      The cap does not re-enable step for such a file. This is future work under OQ-2.
+    - **If the browser lacks `getVideoPlaybackQuality`,** nothing snaps, and only the cap
+      path ("frame rate uncertain") can enable step. Chrome, Safari and Firefox all
+      have it (from memory).
+    - **Phase 1 supports frame rates up to the display's refresh rate.** Files between
+      1× and 2× that rate usually still snap correctly, but Phase 1 does not promise it.
   - **When it snaps.** The 60 vs 59.94 fps pair sets the bound for 60 fps content:
-    `gap = 16.667 µs`, so it needs `ε < 8.333 µs`.
+    `gap = 16.667 µs`, so with the margin it needs `ε ≤ 7.5 µs`.
     - With µs timestamps (`E = 1 µs`, `R = 1`) that holds from the first 10 gaps.
-    - With whole-ms timestamps (`E = 1 ms`, `R = 1`) it needs `N ≥ 121` frames, about
-      **2.02 s** of playback.
+    - With whole-ms timestamps (`E = 1 ms`) it needs `N ≥ 134` frames, about
+      **2.23 s** of playback, when `R = 1`. It needs `N ≥ 267`, about 4.45 s, when
+      `R = 2`.
     - In general, the n vs n×1000/1001 pair is `d/1000` apart. So with `E = 1 ms` a
-      snap needs more than `2 s × R` of playback at any rate up to 240 fps; with
-      `E = 10 ms`, more than `20 s × R`.
-    - Measured on the whole-ms 60 fps fixture (review round 7, author): the estimate
-      snaps to 60 fps at `N = 121` from every start frame. The worst `|d_est − 1/60|` over
-      all start frames is 5.5 µs, against `ε` = 8.26 µs.
+      snap needs at least about `2.22 s × R` of playback at any rate up to 240 fps; with
+      `E = 10 ms`, `22.2 s × R`.
+    - Measured on the whole-ms 60 fps fixture (author, round 7), recomputed with the
+      margin: at `N = 134`, the worst `|d_est − 1/60|` over all start frames is 4.98 µs,
+      against `ε` = 7.46 µs. The reviewer's in-browser snaps without the margin came at
+      N = 120–121, about 2.02 s, in all 8 trials across Chrome and Safari.
   - **Drift bound, snapped.** `d` equals the rate's exact duration. The step target
     `(k + 0.5)·d` differs from the true middle of frame `k` only by the container's
     rounding of that frame's timestamp, at most `E/2` (0.5 ms for whole-ms files). That
@@ -142,8 +180,11 @@ Frames are numbered from 0: with frame duration `d`, frame `k` covers
   - **Drift bound, not snapped** (step enabled at the cap, see below). `|d − true| ≤ ε`
     at the moment step is enabled. The target for frame `k` lands in frame `k` while
     `k·ε + E/2 < d/2`, that is, for `k < (d − E) / (2ε)`.
-    - A 300 fps whole-ms file after the 30 s cap: `N` = 9 000 and `ε` = 0.11 µs, so this
-      holds for `k` < 10 500 frames, about 35 s.
+    - Example: a 12.5 fps file, which is not a candidate, at the 30 s cap. Its frame
+      times are multiples of 10 ms, so `E = 10 ms`; `N` = 375 and `ε` = 26.7 µs. The
+      bound holds for `k` < 1 312 frames, about 105 s. (The round-7 draft used a 300 fps
+      example. That premise was false: on a 60 Hz display such a file now takes the
+      cross-check's "not supported" path.)
     - A variable-rate file has no true `d`, so the bound does not apply (OQ-2).
     - The bound is stated per file. The earlier claim that a rate which does not snap
       "is above 240 fps or variable" was false (round 6, R6-B1) and is withdrawn.
@@ -155,10 +196,11 @@ Frames are numbered from 0: with frame duration `d`, frame `k` covers
     the user started playback. Nothing plays on the user's behalf.
   - **At the snap:** step is enabled.
   - **At the cap:** if the estimate has not snapped after **30 s of counted playback**,
-    or at `ended`, whichever comes first, step is enabled with `d = d_est`.
-    `d_est` must rest on at least 10 counted gaps. The readout then shows the visible
-    note "frame rate uncertain".
-    - 30 s covers a snap with `E = 10 ms` and one run (> 20 s).
+    or at `ended`, whichever comes first, step is enabled with `d = d_est`. That
+    requires at least 10 counted gaps and a cross-check that agrees; when it disagrees,
+    the "not supported" message stays. The readout then shows the visible note "frame
+    rate uncertain".
+    - 30 s covers a snap with `E = 10 ms` and one run (22.2 s).
     - A clip too short to give 10 counted gaps keeps step disabled.
     - Estimation continues after the cap, and a later snap clears the note.
 - **Player state** (decision, recorded, review round 6). The step logic decides from
@@ -178,8 +220,8 @@ Frames are numbered from 0: with frame duration `d`, frame `k` covers
 
   This covers a file arriving mid-seek, whose old seek never fires `seeked`. Setting
   `src` runs the media element load algorithm, which drops the element's queued tasks
-  (HTML spec, stated from memory, check). As a guard, the `seeked` handler ignores any
-  event while `d` is unset.
+  (HTML spec, stated from memory, check). While `d` is unset, the `seeked` handler still
+  clears `pending`; it skips only the setting of `k` (see "The `seeked` handler").
 - **The frame index `k`.** It is set in exactly two ways:
   1. A step sets `k = clamp(k ± 1, 0, last)`, where `last = round(duration / d) − 1`.
      For the fixture that is `round(90.0 ± ε) − 1 = 89`; `floor` would give 88 when
@@ -211,9 +253,11 @@ Frames are numbered from 0: with frame duration `d`, frame `k` covers
     `seeked` events when a second seek starts after `seeking` has gone false (round 5,
     measured). This is the only place the player reads `video.seeking`. It is not a
     pending signal.
-  - Otherwise the handler sets `k` and `kTime` by rule 2, sets `kValid = true` and
-    `pending = false`. It then takes the head of `queue`, if there is one, and handles
-    it as a fresh step press.
+  - Otherwise the handler **always** sets `pending = false` (round 7, R7-B3). If `d` is
+    known, it also sets `k` and `kTime` by rule 2 and sets `kValid = true`. If `d` is
+    unknown, it skips only that step, and `kValid` stays false. Then it takes the head of
+    `queue`, if there is one, and handles it as a fresh step press. While `d` is unknown,
+    step is disabled, so the queue is empty.
 - **The snap.** It puts the picture on the middle of the frame the video stopped on, so
   that the screen and `k` agree before a step uses `k`.
   - **The seek:** `t = video.currentTime`, read while the video is paused. The target
@@ -256,7 +300,8 @@ Frames are numbered from 0: with frame duration `d`, frame `k` covers
   readout says the browser cannot step frames. There is no typed frame rate in Phase 1.
 
 The readout shows the frame index `k`, `lastMediaTime` in seconds, and `d` in ms, plus
-"measuring frame rate…" or "frame rate uncertain" when they apply. The readout element
+"measuring frame rate…", "frame rate uncertain", or the "frame rate higher than this
+display can show" message when they apply. The readout element
 carries `data-frame`, `data-media-time`, `data-d-ms`, `data-d-snapped` and
 `data-pending` (the player's `pending` flag) attributes, which the browser test reads.
 
@@ -283,13 +328,17 @@ source "GitHub Actions", is a manual step for the repo owner and is part of Phas
 
 ### 2.6 Test fixture and harness (decision, recorded)
 
-**Fixtures.** `scripts/make-fixture.sh` writes two files into `test/fixtures/`. The
+**Fixtures.** `scripts/make-fixture.sh` writes three files into `test/fixtures/`. The
 generator is committed; the videos are git-ignored. Both files are 640×360 and made from
 `testsrc`, encoded with `-c:v libx264 -pix_fmt yuv420p -r <rate>`. The default encode of
 `testsrc` is yuv444p (High 4:4:4), which browsers do not decode.
 
 - **`frames.mp4`**: 30 fps, 3 s, 90 frames numbered 0–89, written straight to mp4. Its
   timestamps are exact; the time base is 1/15360.
+- **`frames120.mp4`**: 120 fps, 2 s, 240 frames numbered 0–239, written straight to mp4
+  with `-r 120`. Its timestamps are exact. Measured (author, round 7): ffprobe reports
+  `time_base=1/15360`, `r_frame_rate=120/1`, `nb_frames=240` and duration 2.000 s. It
+  is used by test (c). It has the same marks as the others, 9 cells.
 - **`frames60ms.mp4`**: 60 fps, 5 s, 300 frames numbered 0–299, with **whole-ms
   timestamps** (round 6, R6-B1). The script first encodes to `frames60.mkv`, whose
   Matroska time base is 1 ms. It then remuxes with
@@ -301,7 +350,7 @@ generator is committed; the videos are git-ignored. Both files are 640×360 and 
   - the gaps are only 16 ms and 17 ms;
   - `last = round(4.999·60) − 1 = 299`.
 
-Two marks are drawn on every frame of both files:
+Two marks are drawn on every frame of every file:
 
 - **For the script:** a 360×40 black bar in the top-left corner holds 9 bit cells,
   enough for 0–511. Cell `b` is a 32×32 box at `x = 40·b + 4`, `y = 4`, and it is white
@@ -349,7 +398,11 @@ decides which.
 - **OQ-2** — For variable-frame-rate files, do we step by the estimated duration, or walk
   the callback times (step by seeking, then read the next presented `mediaTime`)? *(design
   call, deferred by evidence: measure on a real file first. Does not block Phase 1, which
-  steps by the estimate and shows the fixed note in §2.4.)*
+  steps by the estimate and shows the fixed note in §2.4.)* **Future work under this
+  question:** files faster than the display presents, which Phase 1 refuses with "frame
+  rate higher than this display can show; stepping not supported yet" (§2.3, round 7
+  R7-B1). Stepping through such a file needs a frame source other than presented-frame
+  callbacks.
 - **OQ-3** — The Assimilator brand name and look for this player. *(needs-input)*
 - **OQ-4** — Which extra feature comes after frame step: loop a section, speed control,
   or overlays? *(needs-input)*
@@ -368,13 +421,14 @@ step it frame by frame.*
   `src/main.ts` (the UI and key bindings). File input and drag-and-drop through the
   platform interface (§2.2): `src/platform.ts` and `src/platform-web.ts`, the browser
   implementation only. A `<video>` element with play, pause and seek. `src/step.ts`
-  holds the frame-duration estimate and snap, the enable rule and the cap, the reset
-  on a new file, the step, and the no-callback case (§2.3). Forward and back step by key and by button.
-  The readout (§2.3) and the constant-rate note (§2.4). The generator for both fixtures and
+  holds the frame-duration estimate (a pure, exported function), the snap and the
+  frame-count cross-check, the enable rule and the cap, the reset on a new file, the
+  step, and the no-callback case (§2.3). Vitest for the estimator unit test. Forward and back step by key and by button.
+  The readout (§2.3) and the constant-rate note (§2.4). The generator for all three fixtures and
   both browser runs (§2.6). `vite.config.ts` with the Pages `base`, and the Pages workflow
   (§2.5).
-- **Exit gate:** in both Chrome and Safari (§2.6), on both fixtures, a browser test does
-  the following.
+- **Exit gate:** in both Chrome and Safari (§2.6), a browser test runs parts A and B,
+  and the tests in part C.
 
   **A. `frames.mp4`** (30 fps, frames 0–89, exact timestamps):
   1. Load the file. Assert step is disabled.
@@ -386,15 +440,48 @@ step it frame by frame.*
 
   **B. `frames60ms.mp4`** (60 fps, frames 0–299, whole-ms timestamps):
   1. Load the file. Play for 1 s. Assert step is **still disabled** and the readout
-     says "measuring frame rate…". At about 60 frames, `ε` ≈ 16.7 µs, which is not
-     below 8.33 µs.
+     says "measuring frame rate…". At about 60 frames, `ε` ≈ 16.7 µs, which is above
+     the 7.5 µs bound.
   2. Keep playing, to at least 3 s in total. Assert `d` has snapped to exactly `1/60`.
-     The snap needs 121 frames, about 2.02 s.
+     The snap needs 134 frames, about 2.23 s.
   3. Pause. Seek to `10.5/60` s. Press `.` 40 times, reading the pixels after **every**
      press: frames 11, 12, … 50.
   4. Seek to `250.5/60` s. Press `,` 40 times, reading after every press: frames 249 …
      210. With the round-6 `d_m` = 16 ms, every one of these reads would be wrong.
   5. Seek to `299.5/60` s. Press `.` once; read frame 299 (clamped at `last`).
+
+  **C. Tests for the round-7 fixes.** The author applied these without a round 8, so
+  the build verifies them:
+  - **(a) An early skipped frame does not cause a wrong snap** (R7-B2). This is a unit
+    test of the estimator, which `src/step.ts` exports as a pure function over a stream
+    of `(mediaTime, totalVideoFrames, runId)` samples, run with Vitest. The synthetic
+    streams are:
+    - 30 fps with µs-rounded `mediaTime` and 60 fps with whole-ms `mediaTime`;
+    - each with its **first** gap doubled (one callback removed);
+    - and separately with a 7-frame skip at gap 3, as measured in round 5.
+
+    Assert: never a snap to 15 or 30 fps, and the estimate snaps to exactly 30 or 60
+    fps. Also assert that before 10 counted gaps nothing snaps, and that recounting
+    after `d_min` drops changes `N` as specified.
+  - **(b) A seek-bar drag before `d` is known, then steps work** (R7-B3). In Chrome and
+    Safari with `frames60ms.mp4`:
+    - Play. At about 0.5 s, drag the player's own seek bar to 0 s: set its range input
+      and dispatch `input`, so the player sets `currentTime` and `pending`.
+    - Assert `data-pending` returns to false after that seek's `seeked`, although `d`
+      is still unknown.
+    - Keep playing until `d` snaps to exactly `1/60`. With `R = 2` that needs 267
+      frames, about 4.45 s of counted playback, so it snaps before the clip ends.
+    - Pause, seek to `100.5/60`, press `.` 3 times, and read frames 101, 102, 103.
+  - **(c) 120 fps on a 60 Hz display: no wrong snap** (R7-B1). With `frames120.mp4`,
+    the test first measures the display rate from `requestAnimationFrame` intervals.
+    Then it plays the whole clip. Allowed outcomes:
+    - step is disabled, and the readout shows "frame rate higher than this display can
+      show; stepping not supported yet"; or
+    - `d` is exactly `1/120`, and 10 steps from frame 100 read 101…110 from the pixels.
+
+    Any other snapped `d` fails. On a ~60 Hz display the **Chrome** run must take the
+    first outcome, because round 7 measured Chrome presenting 120 fps content at 60.
+    Safari presented all 120 in round 7, so it is expected to take the second.
 
   "Read" means the pixel bit-strip decode (§2.6). The test sends one key and waits for
   the readout's `data-frame` to hold the expected index and for no seek to be pending.
