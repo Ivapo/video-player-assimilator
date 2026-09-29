@@ -4,6 +4,7 @@ title: player
 note: >
   What the player is for: the user picks an mp4 file, it plays, and the user can step it one
   frame at a time. Phase 1 is the smallest surface that produces that: a static web page.
+  Phase 2 wraps the same page in a Tauri desktop app with "Open with".
 status: accepted
 last_updated: 2026-09-29
 
@@ -11,6 +12,11 @@ phases:
   - name: "Phase 1 — Web player with frame-by-frame step"
     reviewed: 2026-09-28
     shipped: 2026-09-29
+    cut: null
+    by: null
+  - name: "Phase 2 — Desktop app"
+    reviewed: null
+    shipped: null
     cut: null
     by: null
 
@@ -73,6 +79,9 @@ revoke. Phase 2 adds a Tauri implementation of the same interface, whose `onFile
 for file-open events. In a dev build only (`import.meta.env.DEV`), the web implementation
 also fires `onFile` once for a `?src=<url>` query parameter; the Safari test (§2.6) needs
 it, and a production build does not contain it.
+
+*(2026-09-29, Phase 2.)* The Tauri implementation is designed in §2.8–§2.10. The interface
+does not change.
 
 ### 2.3 Frame-by-frame step
 
@@ -332,6 +341,11 @@ Frames are numbered from 0: with frame duration `d`, frame `k` covers
     - `play()` then `pause()` healed 0 of 7.
     It is not fixable in Phase 1. **Chrome is fully supported in Phase 1**; Safari steps
     correctly, but its picture can be wrong after a paused seek.
+    - **AMENDED 2026-09-29 (Phase 2, §2.11):** this limitation belongs to the system
+      WebKit, not to Safari the app. The macOS desktop app uses the same
+      `WebKit.framework` build as Safari 26.6.2 (Spike 1), so everything said here about
+      Safari applies to it: the batched counter, the missing `webkitDecodedFrameCount`,
+      and the stale picture. The browser-support wording in the README covers the app.
   - **Detection.** After a seek completes while paused and `d` is known, the target is
     the `k` set by the `seeked` handler. A frame callback **shows the target** when
     `round(mediaTime / d) = k`. The picture is the last presented frame, so the check
@@ -339,6 +353,11 @@ Frames are numbered from 0: with frame duration `d`, frame `k` covers
     target at `seeked`, the picture is right. Otherwise the player waits **250 ms** for
     a callback that does. If none comes, the readout shows **"Safari didn't update the
     picture: the frame shown may be wrong"** and sets `data-stale="true"`.
+    - **AMENDED 2026-09-29 by Phase 2 (§2.11). This changes Phase 1's shipped text.** The
+      wording names a browser, which is wrong in the desktop app. Phase 2 replaces it,
+      in the web build and in the app, with one wording that does not name the host:
+      **"The picture may not have updated after this seek. The frame number is
+      correct."** The detection, the 250 ms wait and `data-stale` are unchanged.
     - Why the latest callback and not "callbacks since `seeking`": Chrome often presents
       the target, and fires its callback, before the `seeking` event is dispatched. A
       seek to the frame already shown fires no callback at all. The build's first
@@ -483,6 +502,188 @@ Phase 2 wraps the same `src/` in Tauri and adds the file-open path. Phase 3 is t
 extra feature (OQ-4). Each is a phase in this spec or a new spec; §6.1's ordered test
 decides which.
 
+*(Updated 2026-09-29.)* Phase 2 is now a phase of this spec (§4), because its subject, how
+a file reaches this player, is one this spec owns (§1, §2.2). Its design is §2.8–§2.12,
+drafted from two spikes on branch `spike/vpa-tauri-webkit` (`SPIKE.md`). Phase 3 is
+unchanged: the next extra feature (OQ-4), not yet chosen. Also still ahead, and not in
+Phase 2: testing on Windows and Linux (OQ-6, OQ-7), signing and notarization, and
+drag-and-drop in the desktop app.
+
+### 2.8 The desktop app: shell and build (decision, recorded in `idea.md`, 2026-09-29)
+
+- **One `src/`, a Tauri 2 shell.** The page is the web page. `src-tauri/` holds the
+  shell, and `src/platform-tauri.ts` is the second implementation of `Platform` (§2.2).
+  Nothing in `src/step.ts` changes for the desktop.
+- **Which platform a build uses is decided at build time.** The desktop build runs
+  `vite build --mode desktop --base=./ --outDir dist-desktop`. `src/main.ts` picks
+  `tauriPlatform` when `import.meta.env.MODE === 'desktop'` and `webPlatform` otherwise,
+  and imports the Tauri one dynamically. Vite replaces `MODE` with a constant, so the
+  web bundle contains no Tauri code; the gate checks that (§4, Phase 2, D.4).
+- **`--base=./`** because the app serves the page from `tauri://localhost/`, where the
+  Pages base `/video-player-assimilator/` does not resolve (Spike 1, finding 3).
+  `vite.config.ts` keeps the Pages base for the web build.
+- **The window is made in `setup`**, from its config entry (`"create": false`). Only so
+  the gate build can add its agent as a document-start script: in Spike 2,
+  `append_invoke_initialization_script` ran after the `<video>` existed.
+- **`<video crossorigin="anonymous">`** in `index.html`, for both builds. In the app the
+  file comes from another origin (`stream:`), and without it the gate's pixel reads hit
+  a tainted canvas. On the web the file is a same-origin `blob:` URL, where the attribute
+  changes nothing; Phase 1's gate re-runs to confirm (§4, Phase 2, part W).
+- **Builds.** `.github/workflows/desktop.yml` runs `tauri build` on `macos-latest`
+  (arm64), `windows-latest` and `ubuntu-latest` on every push to `main`. On a pushed tag
+  `v*` it also attaches the bundles, **unsigned**, to the GitHub Release for that tag:
+  `.dmg` (macOS), `.msi` and NSIS `.exe` (Windows), `.deb`, `.rpm` and AppImage (Linux).
+  No signing or notarization. Spike 1 built all three in CI (run 36603767160).
+- **Tested on macOS only.** The Windows and Linux builds are built, not run. The README
+  marks them **"unverified"**, and the release notes say the same. Linux users install
+  their own GStreamer codecs (§1.1).
+- **Drag-and-drop is not in the desktop app in Phase 2.** Tauri's window takes file drops
+  itself, and a dropped path would be a third way to open a file, which the scheme's
+  allow-list (§2.9) does not include. The app hides the page's "or drop a file here"
+  hint. A later phase can add it.
+
+### 2.9 The desktop file source: the `stream:` scheme (decision, recorded, Spike 2)
+
+The file reaches `<video>` through a custom URI scheme, `stream:`, that the shell
+registers with `register_asynchronous_uri_scheme_protocol` and answers from the file on
+disk. The page builds the URL with Tauri's `convertFileSrc(path, 'stream')`:
+
+- macOS and Linux: `stream://localhost/<encodeURIComponent(path)>`;
+- Windows (WebView2): `http://stream.localhost/<encodeURIComponent(path)>`. The page there
+  is `http://tauri.localhost`. (From the Tauri 2.12 sources, Spike 2. Untested.)
+
+**The handler** (`src-tauri/src/stream.rs`), per request, on its own thread:
+
+1. Decode the path. **If it is not a path the user opened, answer 403**, before touching
+   the file. "Opened" means returned by the file dialog or delivered by a file-open event
+   (§2.10), in this process. The comparison is after `std::fs::canonicalize` on both
+   sides. An opened path that no longer exists answers 404.
+2. `HEAD`: 200 with `Content-Length` and `Content-Type`.
+3. **Single byte ranges only:** `bytes=a-b`, `bytes=a-` and `bytes=-n`, with the end
+   clamped to the file. The answer is 206 with `Content-Range: bytes a-b/len`.
+4. **At most 1 MiB (1 048 576 bytes) per answer.** A longer range is answered with its
+   first 1 MiB, and `Content-Range` says so; the media stack asks again for the rest.
+   The handler never reads more than it sends.
+5. A malformed, unsatisfiable or multi-range header answers **416 with
+   `Content-Range: bytes */len`**.
+6. No `Range` header answers 206 with the first 1 MiB. This deviates from HTTP, which
+   says 200 with the whole file. It is kept because a 200 would mean reading the whole
+   file, which is the thing this design avoids. WebKit sends `Range` for media.
+7. **Every answer carries CORS headers**, including 403, 404 and 416:
+   `Access-Control-Allow-Origin: *` and `Access-Control-Expose-Headers: content-range,
+   accept-ranges, content-length`. Without them the page sees an error answer only as
+   "Load failed", and the gate cannot read pixels (§2.8).
+8. `Content-Type: video/mp4` for `.mp4`, otherwise `application/octet-stream`.
+9. **Every request gets an answer.** A panic in the handler is caught and answered with
+   500. The spike's handler logged a panic and left the request unanswered, which would
+   leave a seek waiting forever. The spike logged 0 panics, but its stuck seek is
+   unexplained (OQ-8).
+
+**Per-request log** in debug builds and in the gate build (§2.12), not in release: one
+line per request to `stream.log` in the app's log directory, with the time, method,
+`Range`, status, `Content-Range`, body bytes and handler time in µs, plus one line for
+each caught panic. It is how OQ-8 gets its evidence.
+
+#### Why not the asset protocol (decision, recorded)
+
+Spike 2 measured Tauri's asset protocol (`asset:`, `convertFileSrc` with no scheme)
+against this scheme in the production app. They **tied on every measurement**: 20/20
+cold launches each, the same seek latency (median 12 vs 13 ms) and memory, 6/6 odd paths,
+and "Open with" end to end. Spike 1's `asset:` failures were a harness bug (a Safari tab
+took the session), not Tauri. `stream:` wins on what we control:
+
+- it reads only what is asked, at most 1 MiB. The asset protocol answers a request with
+  no `Range` by reading the whole file into memory;
+- it answers a bad range with a 416 the page can see. The asset protocol's 416 has no
+  CORS header, so the page sees "Load failed";
+- it serves only files the user opened. The asset protocol needs an `assetProtocol`
+  scope; the spike's was `**`, the whole disk, readable by any script in the page.
+
+The cost is about 100 lines of Rust that this project owns and tests (§4, Phase 2,
+part E). A blob URL was ruled out before the spikes: it holds the whole file in memory.
+
+### 2.10 Opening a file in the desktop app (decision, recorded in `idea.md`)
+
+Two ways, both through the shell, so the shell knows every path it may serve (§2.9):
+
+- **The dialog.** In the app, "Open mp4…" does not open the page's `<input type="file">`.
+  `tauriPlatform` cancels the input's click and invokes the command `pick_file`, which
+  opens the system dialog from Rust (`tauri-plugin-dialog`, filter mp4), adds the path to
+  the allow-list, and returns it.
+- **"Open with" on macOS.** `tauri.conf.json` declares `bundle.fileAssociations` for mp4
+  (role Viewer), which becomes `CFBundleDocumentTypes`; the app is then listed under
+  Finder's "Open With". Finder sends an open-documents event, which Tauri delivers as
+  `RunEvent::Opened`, for both a running app and a cold start (Spike 1, 4).
+- **Windows and Linux: untested** (OQ-7). The path arrives in argv, which the shell reads
+  at start. A second launch while the app runs would start a second process, so the shell
+  uses `tauri-plugin-single-instance` on those two systems, and its callback hands the
+  new argv's paths to the running app. Built in CI, never run.
+
+**Paths are held until the page subscribes.** On a cold start, `RunEvent::Opened` arrives
+about 87 ms after launch, before `setup`, so before the webview exists (Spike 1, 4).
+`src-tauri/src/opened.rs` keeps one mutex over `{ subscribed, buffer }`:
+
+- `deliver(paths)` (from `Opened`, argv, or the single-instance callback) adds each path
+  to the allow-list. If the page has not subscribed, it appends them to `buffer`;
+  otherwise it emits the event `opened` with them.
+- The page first registers its `opened` listener, then invokes `subscribe_opened`, which
+  sets `subscribed` and returns and empties `buffer`, under the same lock. So every path
+  is delivered exactly once, whichever side comes first.
+- The page loads the **last** path it receives: the most recent open wins. A new file
+  resets the player as on the web (§2.3, "Reset on a new file").
+
+Spike 2 measured the cold start with a stand-in that polled every 300 ms: `open -a` to
+verified playback took 1.74–1.83 s, 10/10 across both candidates. The stand-in reloaded
+the page to load the file, which the real platform does not.
+
+**Double-click is not promised.** It works only when the app is the user's default for
+mp4, and an app cannot make itself the default on macOS 26:
+`LSSetDefaultRoleHandlerForContentType` returned 0 and changed nothing (Spike 1, 4). The
+README explains how the user does it: Finder → an mp4 → Get Info → "Open with:" → the app
+→ "Change All…". The Phase 2 gate checks double-click by hand after that (H.4).
+
+### 2.11 One stale-picture wording, and browser support (decision, recorded in `idea.md`)
+
+- **The warning** (§2.3, "Stale picture after a paused seek") reads, on the web and in the
+  app: **"The picture may not have updated after this seek. The frame number is
+  correct."** It names no browser. The old wording named Safari, which is wrong in the
+  app. This changes Phase 1's shipped text (the note in §2.3). The web and the app keep
+  one string, `MESSAGES.stale` in `src/main.ts`.
+- **Browser support now covers the app.** Chrome: fully supported. Safari **and the macOS
+  app**: step correctly, with Safari's limitations, because both use the same system
+  WebKit (Spike 1: `WebKit.framework` 21624.5.1.11.3 in both). That is the stale picture
+  after a long paused seek, and the batched counter (OQ-2's known limitation). Windows and
+  Linux apps: unverified.
+- **In the app, the stale picture is unmeasured.** Spike 1's "app" stale sets turned out
+  to be Safari's. Spike 2's production gates had no stale read in 36 B/C(b) runs, which is
+  too few long seeks to give a rate. The Phase 2 gate records the rate (G), and does not
+  gate it. It does gate the warning being right.
+
+### 2.12 The desktop gate harness (decision, recorded, Spikes 1–2)
+
+`tauri-driver` has no macOS support, so there is no WebDriver for the app. The gate
+drives the **production app** through an in-page agent, as Spike 2 did:
+
+- **The gate build** is a release build with the Cargo feature `gate`, off by default:
+  `tauri build --bundles app --features gate`. The feature adds exactly three things:
+  `test/desktop/agent.js` as the window's document-start script; the per-request log
+  (§2.9); and a command `gate_open(path)` that calls the same `deliver` as
+  `RunEvent::Opened` (§2.10). The page, `src/` and the scheme handler are the release
+  ones. CI builds without the feature.
+- **The runner**, `test/desktop/run.ts`, is a plain HTTP channel on `127.0.0.1:5181`. It
+  drives the unchanged `test/e2e/gate.ts` through a `Driver`, as Spike 1 did. Keys are
+  synthetic `keydown` events on `window`; safaridriver sent real keys in Phase 1.
+- **The runner asserts that it is talking to the app's page**, on every hello:
+  `location.protocol === 'tauri:'` and `'__TAURI_INTERNALS__' in window`. A hello from
+  any other page aborts the run. Spike 1 skipped this, and most of its "app" numbers were
+  a leftover Safari tab's.
+- **Conditions:** the runner runs under `caffeinate -dimu`, with the app window visible
+  and focused. In Spike 1 the display slept, rAF stopped, the view presented at about
+  10 fps, and the results were silently wrong.
+- **A stuck seek** is a player-started seek whose `seeked` has not come 15 s after it
+  started. The runner records it with the `stream.log` lines from its start to the
+  timeout.
+
 ## 3. Open questions
 
 - **OQ-1** — ~~When `requestVideoFrameCallback` is missing, is a typed frame rate enough, or
@@ -506,8 +707,32 @@ decides which.
 - **OQ-3** — The Assimilator brand name and look for this player. *(needs-input)*
 - **OQ-4** — Which extra feature comes after frame step: loop a section, speed control,
   or overlays? *(needs-input)*
-- **OQ-5** — Does "Open with" file association belong in the first desktop phase?
-  *(needs-input)*
+- **OQ-5** — ~~Does "Open with" file association belong in the first desktop phase?
+  *(needs-input)*~~ **RESOLVED 2026-09-29** (`idea.md`, "Agreed for Phase 2", and after
+  Spike 1): **"Open with": yes**, in Phase 2, tested on macOS (§2.10). **Double-click:
+  documented, not promised.** An app cannot make itself the mp4 default on macOS 26, so the
+  README explains "Change All…", and the gate checks double-click by hand after it (H.4).
+- **OQ-6** — Does Linux play media over a custom scheme? WebKitGTK plays `<video>` through
+  GStreamer, and whether its source element accepts `stream://` at all is untested. It
+  applies to the asset protocol too. *(needs-input: a real Linux machine with the
+  GStreamer codecs.)* Blocks any claim that the Linux build works, not the Phase 2 gate:
+  Phase 2 ships Linux marked "unverified" (§2.8). If it fails, the fallback is a design
+  call for a later phase.
+- **OQ-7** — Do file open and playback work on Windows and Linux? Untested in Phase 2:
+  - Windows plays from `http://stream.localhost/…` in WebView2 (§2.9);
+  - the path arrives in argv, and a running app receives it through the
+    single-instance plugin (§2.10);
+  - Linux file associations come from the bundle's `.desktop` entry, from memory,
+    unchecked.
+  *(needs-input: Windows and Linux machines.)* Blocks removing "unverified" from those
+  builds, not Phase 2.
+- **OQ-8** — Why did one seek never complete in Spike 2? Candidate B, gate set 1, A.4: a
+  step's `seeked` never came within 15 s, and `pending` stayed stuck at frame 11. That is
+  1 of 36 gate runs. It did not recur in the next 24, 12 of them with every request
+  logged (0 errors, 0 panics). It could be the handler or WebKit. *(answerable by
+  measurement.)* The Phase 2 gate runs enough repetitions to see it again at that rate
+  (F), with every request logged (§2.9). **Blocks Phase 2's exit gate if it recurs**:
+  then the build stops, and the user decides from the log.
 
 ## 4. Implementation phases
 
@@ -582,6 +807,13 @@ step it frame by frame.*
     Any other snapped `d` fails. On a ~60 Hz display the **Chrome** run must take the
     first outcome, because round 7 measured Chrome presenting 120 fps content at 60.
     Safari presented all 120 in round 7, so it is expected to take the second.
+    **CORRECTED 2026-09-29 (Spike 1, finding 7):** Safari does **not** present all 120.
+    On a 60 Hz display it presents about 60 frames per second: 96–118 frame callbacks
+    over the 2 s clip in Safari 26.6.2, and 106–119 in the Tauri app on the same WebKit. It
+    still snapped exactly `1/120` in every run (Phase 1's 3 gate runs, and the spikes'
+    3/3, 7/7 and 18/18). That is because 96–119 callbacks is between 1× and 2× the
+    display rate, so some gaps are single frames and `d_min` stays right (§2.3, "Why it
+    is needed"). The expected outcome is unchanged, but the reason given was wrong.
     **Amended at the build:** in a browser whose counter is batched (the readout's
     `data-counter`), the test records the outcome, the snapped `d` or the refusal, and
     asserts neither (OQ-2's known limitation). Chrome, whose counter is per-frame, keeps
@@ -609,6 +841,187 @@ step it frame by frame.*
   algorithm). Commit the test file generator and the three videos, which total 284 KB
   (amended at the build by the user's decision; they were to be git-ignored). Write
   `shipped` after the gate passes.
+
+### Phase 2 — Desktop app
+*Produces the observable: yes — a user on macOS opens an mp4 in the desktop app, through
+"Open mp4…" or Finder's "Open With", it plays, and they step it one frame at a time. The
+frame and the step are Phase 1's. What is new is how the file arrives, which is the
+platform layer that §1 names as "not something anyone watches". It is argued for here
+because it is the only way the desktop user reaches the observable at all: without it the
+app is an empty window.*
+
+Drafted 2026-09-29 from `idea.md` ("Agreed for Phase 2") and two spikes on branch
+`spike/vpa-tauri-webkit` (`SPIKE.md`, evidence in `spike/results/`). Design: §2.8–§2.12.
+
+- **Scope:**
+  - `src-tauri/`:
+    - `Cargo.toml`: `tauri` 2, `tauri-plugin-dialog`, `percent-encoding`, and
+      `tauri-plugin-single-instance` for Windows and Linux only. The feature `gate`.
+    - `tauri.conf.json`: identifier `com.ivapo.video-player-assimilator`; the version
+      from `package.json`; one window, 960×760, `"create": false`;
+      `frontendDist: ../dist-desktop`; `beforeBuildCommand: npm run build:desktop`;
+      `fileAssociations` for mp4 (role Viewer); bundle targets `all`. `csp` stays `null`,
+      as in the spikes; a CSP is not in scope. The product name and icon are
+      placeholders until OQ-3.
+    - `capabilities/default.json`: what the page needs to `listen` for `opened`.
+    - `src/main.rs`: the builder, the window made in `setup`, `RunEvent::Opened`, argv
+      at start, and the single-instance callback.
+    - `src/stream.rs`: the handler, `parse_range`, and the allow-list (§2.9).
+    - `src/opened.rs`: `deliver`, `subscribe_opened` and `pick_file` (§2.10).
+    - `src/gate.rs`: the `gate` feature only (§2.12).
+    - Rust unit tests, run by `cargo test`, for `parse_range`, the allow-list, and the
+      exactly-once delivery in both orders.
+  - `src/platform-tauri.ts`: `tauriPlatform(input)`, implementing `Platform` (§2.2).
+  - `src/main.ts`: the platform chosen by `import.meta.env.MODE` (§2.8); the new
+    `MESSAGES.stale` (§2.11); the drop hint hidden in the app.
+  - `index.html`: `crossorigin="anonymous"` on the `<video>`.
+  - `package.json`: `build:desktop` (`tsc --noEmit && vite build --mode desktop
+    --base=./ --outDir dist-desktop`) and `tauri` scripts; `@tauri-apps/api`; and
+    `@tauri-apps/cli` pinned to 2.12.x, which Spike 1's CI used.
+  - `.github/workflows/desktop.yml` (§2.8).
+  - `test/desktop/`: `agent.js`, `run.ts`, and the suites below (launches, scheme probe,
+    paths, large file, stale soak, "Open with").
+  - `scripts/make-big-fixture.sh`: writes the 1 GB file of part E outside the repo:
+    `testsrc2` at 1920×1080, 30 fps, 640 s, `h264_videotoolbox` at 40 Mb/s, yuv420p, and
+    no `faststart`, so `moov` comes after `mdat`. That is the shape of Spike 2's file,
+    1 093 112 387 bytes.
+- **Exit gate.** All on this Mac (macOS 26.6.2, arm64, ~60 Hz display), on the gate build
+  of §2.12 unless a step says otherwise. Every step in the app runs under
+  `caffeinate -dimu` and asserts the app's page (§2.12).
+
+  **D. Builds**
+  1. `npm ci`, `npm run build`, `npm test` (at least the 38 Vitest tests of Phase 1) and
+     `cargo test` pass.
+  2. `desktop.yml` passes on all three runners for the merge commit.
+  3. For the tag `v0.2.0` on `main`, the GitHub Release holds six unsigned bundles:
+     `.dmg`, `.msi`, NSIS `.exe`, `.deb`, `.rpm` and AppImage.
+  4. The web bundle contains no Tauri code: `dist/` has no `__TAURI` and no `stream.`.
+     The release app has no `gate_open`: invoking it fails.
+
+  **E. The `stream:` scheme**
+  1. **Launches:** 20 cold launches, each loading `frames.mp4` through `gate_open`. The
+     file loads 20/20. Recorded: first presented frame after `src` is set.
+  2. **Probe,** by `fetch()` from the app's page against `frames.mp4` (all asserted):
+     `bytes=a-b`, `bytes=a-` and `bytes=-n` give 206 with the right bytes and
+     `Content-Range`; a range over 1 MiB gives exactly its first 1 048 576 bytes; a bad,
+     out-of-range or multi-range header gives 416 with `bytes */len`; `HEAD` gives 200
+     with the length; no `Range` gives 206 of the first 1 MiB; a path never opened gives
+     **403**, and an opened path deleted afterwards gives 404. Every answer, 403, 404
+     and 416 included, carries `Access-Control-Allow-Origin`, so the page sees each
+     status rather than "Load failed".
+  3. **Paths:** the six names of Spike 2 (spaces; `&`; NFC and NFD accents;
+     Cyrillic, CJK and emoji; `%20#?`; a 250-byte name), all in a directory whose name
+     has spaces and Unicode. Each loads, and after a seek to `10.5/30` the pixels read
+     frame 10.
+  4. **The 1 GB file:** loads, and 50 random paused seeks each present a frame within
+     2 s (50/50). The app process's peak RSS stays under 300 MB, which shows that the
+     handler does not hold the file. Recorded: first frame; seek to `seeked`; seek to
+     the target frame; peak RSS of the app and WebContent processes.
+  5. **The log:** `stream.log` has one line per request of E.1–E.4, and no panic line.
+
+  **F. Phase 1's gates in the app.** Parts A, B, C(b) and C(c) of Phase 1, unchanged in
+  `test/e2e/gate.ts`, with each file loaded through `gate_open`. **27 repetitions,
+  that is, 108 gate runs.**
+  - *Why 27:* OQ-8's stuck seek came in 1 of 36 gate runs. If it still happens at that
+    rate, 108 runs miss it with probability (35/36)^108 = 4.8%. So the gate sees it with
+    95% confidence, and a clean result bounds its rate below 1/36 at that confidence.
+    The spike ran 12 gate runs in about 95 s, so this takes about 15 minutes.
+  - **Stale reads are gated on correctness, in every part:** a read may show the wrong
+    frame only when the readout has `data-stale="true"`, and `data-stale="true"` with the
+    right frame fails. That extends Phase 1's Safari rule, which accepted flagged reads
+    only in B.3 and C(b), to A, because A.3's seek is also a long paused seek, and 108
+    runs make a stale A.3 likely if the app is stale as often as Safari. When the warning
+    shows, the readout's text is the §2.11 wording.
+  - **Any stuck seek fails the gate** (§2.12). The build then stops, with the stuck
+    seek's `stream.log` lines, for the user's decision (OQ-8).
+  - C(c) records its outcome, as Phase 1 amended for a batched counter, and asserts that
+    `data-counter` is `batched`.
+
+  **G. Stale soak (the rate is recorded; the warning is gated).** Spike 1's 3a sequence
+  in the app: `frames60ms.mp4`, play until `d` snaps, pause, seek to `100.5/60`, read the
+  pixels at 300 ms and at 2 s. Two sets of 50.
+  - Gated: the warning is exact. It fires in every run whose picture is stale at 300 ms,
+    and in no run whose picture is right.
+  - Recorded: the stale rate per set, how many heal by 2 s, and the time from `seeked`
+    to the target's callback in the runs that are not stale.
+
+  **H. File open** (the release app, not the gate build, registered with `lsregister -f`)
+  1. **"Open with", cold**, driven by `open -a <app> <file>`, which sends Finder's
+     open-documents event: 5 runs. The app starts, and `frames60ms.mp4` plays and snaps.
+     Recorded: `open` to the first presented frame.
+  2. **"Open with", running**, with `frames.mp4` already loaded: 5 runs. The same process
+     loads `frames60ms.mp4`, the player resets, and it snaps. No second process.
+  3. **The dialog, by hand:** "Open mp4…" shows the system dialog filtered to mp4. The
+     picked file plays, and `.` steps it.
+  4. **Double-click, by hand:** follow the README's "Change All…", then double-click an
+     mp4 in Finder with the app closed, and again with it running. It plays both times.
+     Afterwards, restore the tester's own default mp4 player.
+  5. **First launch of the downloaded release, by hand:** download the `.dmg` from the
+     `v0.2.0` release, install, and open. Gatekeeper blocks it; the README's steps get
+     past that, and a file then opens and steps.
+
+  **W. The web build still works.** `src/` and `index.html` changed, so Phase 1's gate
+  runs once, unchanged, in Chrome and in Safari (§2.6), with Phase 1's pass rules: no
+  `data-stale="true"` anywhere in Chrome, and the new wording when it shows in Safari.
+  After the merge, the Chrome run repeats A.1–A.4 against the deployed Pages URL.
+
+  **Not in the gate:** Windows and Linux, which are built (D.2) and not run (OQ-6,
+  OQ-7). Drag-and-drop in the app, which Phase 2 does not have (§2.8).
+
+- **Predictions** (written 2026-09-29, before any Phase 2 measurement; not to be edited
+  after it). The basis is the spikes' measurements on this Mac.
+
+  | step | prediction | basis |
+  |---|---|---|
+  | D.2 CI | 3/3 pass | Spike 1 CI: 3/3 in 237–384 s |
+  | D.3 bundle sizes | `.dmg` 2.8–3.6 MB; `.msi` 2.9–3.8 MB; NSIS 1.9–2.6 MB; `.deb`/`.rpm` 3.0–3.9 MB; AppImage 80–90 MB | Spike 1: 2.79, 2.90, 1.93, 2.98, 2.98 and 81.6 MB, plus two plugins |
+  | E.1 launches | 20/20; first frame median 100–150 ms, max under 250 ms | Spike 2, B: 20/20; median 113 ms (95–195) |
+  | E.2 probe | all as specified; the 403 is new code and has no spike number | Spike 2, B's range table |
+  | E.3 paths | 6/6, frame 10 | Spike 2: 6/6 for both candidates |
+  | E.4 1 GB: first frame | 120–200 ms | Spike 2, B: metadata 102 ms, first frame 143 ms |
+  | E.4 seek → `seeked` | median 10–20 ms, p95 under 40 ms | Spike 2, B: median 13, p95 24, max 46 ms |
+  | E.4 seek → frame shown | median 12–25 ms, p95 under 50 ms; 50/50 | Spike 2, B: median 16, p95 33 ms; 50/50 |
+  | E.4 peak RSS | app 90–120 MB; WebContent about 40 MB | Spike 2, B: app 99, WebContent 40 |
+  | E.5 handler time | median about 50 µs, p99 under 250 µs | Spike 2, B's log: median 54 µs, p99 195 µs |
+  | F: A, B, C(b) | pass in every run that has no stuck seek | Spike 2: 71/72 gate runs over both candidates; the miss was the stuck seek |
+  | F: stuck seeks | **1–4 in 108: I expect it to recur, so F is likely to stop the build** | B's rate in Spike 2 was 1/36: 3.0 expected in 108, P(at least one) = 95%. If it is WebKit's and not the handler's, the rate over both candidates is 1/72: 1.5 expected, P = 78% |
+  | F: stale reads | 0–5 in 108 runs, all flagged; no flag on a right frame | Spike 2: 0 stale in 36 B/C(b) runs; the warning exact in 25/25 across both spikes |
+  | F: C(c) | `batched` 27/27; `d` = 1/120 exactly 27/27; 96–119 callbacks per 2 s clip | Spike 2: `batched` and 1/120 in 18/18; Spike 1: 106–119 (app), 96–118 (Safari) |
+  | G: stale rate | **3–12% per set of 50**: lower than Safari, not zero | Safari, same procedure: 12/96 (Spike 1, corrected); app gates: 0/36 (Spike 2); Phase 1 under safaridriver: 10–12/20, not comparable |
+  | G: warning | exact in 100/100 | 25/25 stale runs warned, 0/219 correct runs |
+  | G: healed by 2 s | none | 0 of 25 healed in Spike 1; none in Phase 1 |
+  | G: `seeked` → target callback, not stale | median 9–11 ms, max about 20 ms | Spike 1: median 9–11, max 19 ms |
+  | H.1 cold "Open with" | 5/5; `open` to the first frame 1.4–1.8 s | Spike 2: 10/10, 1.74–1.83 s to verified playback, including a page reload the real platform does not do |
+  | H.2 running "Open with" | 5/5; under 0.5 s to the first frame | Spike 1: `Opened` reaches the running process; first frame about 113 ms after `src` |
+  | H.3 dialog | works | not measured by the spikes |
+  | H.4 double-click | works, cold and running, after "Change All…" | Spike 1's prediction; not established, because the spike could not make the app the default |
+  | H.5 Gatekeeper | the first open is blocked; "Open Anyway" in System Settings → Privacy & Security gets past it | from memory of macOS 15 and later; not measured |
+  | W | Phase 1's gate passes in both browsers; Safari shows the new wording when stale | only a string, an attribute and the platform choice changed on the web |
+
+- **Manual one-time setup** (not code): install the Rust toolchain and
+  `@tauri-apps/cli` (Command Line Tools suffice; no full Xcode, Spike 1); `ffmpeg-full`
+  for the 1 GB file; register the app with `lsregister -f` for H. The web gate needs
+  Phase 1's setup (safaridriver, Pages).
+- **Order at the end:** F, G and H.1–H.4 run on this branch's builds. Then merge, push the
+  tag `v0.2.0` on `main`, and run D.2–D.3, H.5 and W's Pages check against what CI
+  published.
+- **Close-out** (the reconciliation step):
+  - `rules/player.md`: the stale wording; the platform layer (the Tauri implementation is
+    built); browser behaviour with the macOS app beside Safari, and 120 fps presenting at
+    about 60; add `src/platform-tauri.ts` to `sources`.
+  - A new `rules/desktop.md`: the shell, the scheme, file open, the builds and the gate
+    harness. Sources `src-tauri/src/*.rs`, `src-tauri/tauri.conf.json`,
+    `.github/workflows/desktop.yml` and `test/desktop/*`. It is a new rule, not more
+    lines in `rules/player.md`, which has 90 as its cap.
+  - `README.md`: a desktop section, with the Releases link; that the builds are
+    unsigned and how to open them (Gatekeeper, SmartScreen); **Windows and Linux
+    "unverified"**; Linux needs its GStreamer codecs; "Open with", and "Change All…" for
+    double-click. Browser support in the §2.11 wording, and the new warning text.
+  - `CLAUDE.md` stanza: none needed; it already describes a web build and a desktop app
+    from one `src/`.
+  - Record G's stale rate and OQ-8's result in the review record, against the
+    predictions above.
+  - Write Phase 2's `shipped` date after the gate passes.
 
 <!--
 The review record is a sibling file, not a section: it lives at

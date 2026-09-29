@@ -2,5 +2,5 @@
 
 # Specs
 
-- **[player](player_spec.md)** — `vpa-001` · accepted · done
-  What the player is for: the user picks an mp4 file, it plays, and the user can step it one frame at a time. Phase 1 is the smallest surface that produces that: a static web page.
+- **[player](player_spec.md)** — `vpa-001` · accepted · partial
+  What the player is for: the user picks an mp4 file, it plays, and the user can step it one frame at a time. Phase 1 is the smallest surface that produces that: a static web page. Phase 2 wraps the same page in a Tauri desktop app with "Open with".
