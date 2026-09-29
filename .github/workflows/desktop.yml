@@ -1,0 +1,106 @@
+# Builds the desktop app (spec vpa-001 §2.8) on macOS (arm64), Windows and Linux, on every push
+# to main. On a pushed tag v*, a first job creates the GitHub Release and each build job
+# attaches its bundles to it, unsigned: .dmg; .msi and NSIS .exe; .deb, .rpm and AppImage.
+# No signing or notarization. Only the macOS build is tested (the gate runs locally); the
+# Windows and Linux builds are built, not run, and marked "unverified".
+#
+# Also on pushes to spec/vpa-001-p2: a build-only check before the merge (the user's
+# decision at the Phase 2 build, 2026-09-29).
+name: Desktop
+
+on:
+  push:
+    branches: [main, spec/vpa-001-p2]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "$TAG" --notes "$(cat <<'NOTES'
+          Desktop builds of the video player. **Unsigned**: see the README for how to open them
+          (macOS Gatekeeper, Windows SmartScreen).
+
+          - macOS (Apple silicon): `.dmg`. Tested.
+          - Windows: `.msi` and `.exe` installer. **Unverified**: built, not run.
+          - Linux: `.deb`, `.rpm` and AppImage. **Unverified**: built, not run. Needs the
+            system's GStreamer codecs for H.264.
+          NOTES
+          )"
+
+  build:
+    needs: release
+    # On a branch push the release job is skipped; build anyway.
+    if: ${{ !cancelled() && (needs.release.result == 'success' || needs.release.result == 'skipped') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Linux webview and bundler dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - run: npm ci
+      - run: npm run tauri -- build
+      - name: Bundles
+        id: bundles
+        shell: bash
+        run: |
+          cd src-tauri/target/release/bundle
+          echo "| bundle | bytes |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          files=()
+          for f in dmg/*.dmg msi/*.msi nsis/*.exe deb/*.deb rpm/*.rpm appimage/*.AppImage; do
+            [ -f "$f" ] || continue
+            files+=("src-tauri/target/release/bundle/$f")
+            b=$(wc -c < "$f" | tr -d ' ')
+            echo "$f $b"
+            echo "| ${{ matrix.os }} $f | $b |" >> "$GITHUB_STEP_SUMMARY"
+          done
+          printf '%s\n' "${files[@]}" > "$RUNNER_TEMP/bundles.txt"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: bundle-${{ matrix.os }}
+          path: |
+            src-tauri/target/release/bundle/dmg/*.dmg
+            src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/bundle/deb/*.deb
+            src-tauri/target/release/bundle/rpm/*.rpm
+            src-tauri/target/release/bundle/appimage/*.AppImage
+          retention-days: 7
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          mapfile -t files < "$RUNNER_TEMP/bundles.txt"
+          gh release upload "$TAG" "${files[@]}" --repo "$GITHUB_REPOSITORY" --clobber
