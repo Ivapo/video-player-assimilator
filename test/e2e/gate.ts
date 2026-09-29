@@ -1,17 +1,18 @@
 // The Phase 1 exit gate (spec vpa-001 §4, parts A, B, C(b), C(c)): one file of steps,
-// shared by the Chrome runner (Playwright) and the Safari runner (safaridriver).
+// shared by the Chrome runner (Playwright), the Safari runner (safaridriver) and, from
+// Phase 2, the desktop app's runner (test/desktop/run.ts, part F).
 //
 // Each gate returns a record of what it measured. A failed check throws.
 
 export type Fixture = 'frames.mp4' | 'frames60ms.mp4' | 'frames120.mp4';
 
 export interface Driver {
-  readonly browser: 'chrome' | 'safari';
+  readonly browser: 'chrome' | 'safari' | 'app';
   /** Open a fresh page, install HELPERS, and load the fixture into the player. */
   load(fixture: Fixture): Promise<void>;
   /** Run `body` as an async function in the page, with `G` bound to the helpers. */
   run<T = unknown>(body: string): Promise<T>;
-  /** Send one real key press: '.', ',' or ' '. */
+  /** Send one key press: '.', ',' or ' ' (real keys in the browsers, synthetic in the app). */
   key(k: '.' | ',' | ' '): Promise<void>;
 }
 
@@ -62,7 +63,7 @@ export const HELPERS = String.raw`
       while (!(G.presented !== null && Math.round(G.presented * fps) === k) && performance.now() - t0 < 1000) {
         await G.sleep(2);
       }
-      return { frame: G.readFrame(), stale: ro().dataset.stale === 'true' };
+      return { frame: G.readFrame(), stale: ro().dataset.stale === 'true', text: ro().textContent };
     },
     // A script seek, as the gate's "Seek to t": set currentTime and wait for seeked.
     async seek(t) {
@@ -131,10 +132,14 @@ async function pause(drv: Driver) {
   await waitFor(drv, `d.paused && d.pending === 'false'`, 'pause and snap');
 }
 
+/** The stale-picture warning, in every host (§2.11). */
+export const STALE_WORDING = 'The picture may not have updated after this seek. The frame number is correct.';
+
 /**
  * Stale-picture allowance (amended at the build): in Safari, B.3 and C(b) pass a read whose
  * pixels are wrong if the player flagged the picture stale. Everywhere else, and in Chrome,
- * the pixels must be right.
+ * the pixels must be right. In the app (Phase 2, F) the flag must be exact in every part: a
+ * wrong frame passes only if flagged, and a flag on a right frame fails.
  */
 interface Reads {
   allowStale: boolean;
@@ -146,10 +151,22 @@ interface Reads {
 const strict = (): Reads => ({ allowStale: false, staleAccepted: 0, staleFlagged: 0 });
 
 async function readAt(drv: Driver, k: number, fps: number, reads: Reads, what: string) {
-  const r = await drv.run<{ frame: number; stale: boolean }>(`return G.settleRead(${k}, ${fps})`);
-  if (r.stale) reads.staleFlagged++;
+  const r = await drv.run<{ frame: number; stale: boolean; text: string }>(`return G.settleRead(${k}, ${fps})`);
+  if (r.stale) {
+    reads.staleFlagged++;
+    check(r.text.includes(STALE_WORDING), `${what}: data-stale is true, but the readout lacks the warning: ${r.text}`);
+  }
   // Chrome keeps the picture current: a stale warning there is itself a failure.
   check(!(drv.browser === 'chrome' && r.stale), `${what}: Chrome flagged the picture stale at frame ${k}`);
+  if (drv.browser === 'app') {
+    if (r.frame === k) {
+      check(!r.stale, `${what}: the app flagged a right frame (${k}) stale`);
+      return r.frame;
+    }
+    check(r.stale, `${what}: pixels read ${r.frame}, expected ${k}, and the picture was not flagged stale`);
+    reads.staleAccepted++;
+    return r.frame;
+  }
   if (r.frame === k) return r.frame;
   check(reads.allowStale && r.stale, `${what}: pixels read ${r.frame}, expected ${k} (data-stale=${r.stale})`);
   reads.staleAccepted++;
@@ -284,6 +301,9 @@ export async function gateCc(drv: Driver) {
   };
   if (drv.browser === 'chrome') {
     check(d.counter === 'per-frame', `C(c): Chrome's counter is ${d.counter}, expected per-frame`);
+  }
+  if (drv.browser === 'app') {
+    check(d.counter === 'batched', `C(c): the app's counter is ${d.counter}, expected batched`);
   }
   // A batched counter skips the cross-check (OQ-2 limitation): record the outcome only.
   if (d.counter === 'batched') {

@@ -1,4 +1,5 @@
 // The page: file pick, playback controls, step keys and buttons, and the readout.
+import type { Platform } from './platform';
 import { webPlatform } from './platform-web';
 import { StepController, type Dir } from './step';
 
@@ -19,12 +20,23 @@ const MESSAGES = {
   measuring: 'measuring frame rate…',
   uncertain: 'frame rate uncertain',
   unsupported: 'frame rate higher than this display can show; stepping not supported yet',
-  stale: "Safari didn't update the picture: the frame shown may be wrong",
+  stale: 'The picture may not have updated after this seek. The frame number is correct.',
 } as const;
 
 const player = new StepController(video, render);
 
-webPlatform($<HTMLInputElement>('file'), $<HTMLElement>('drop')).onFile((file) => {
+// Decided at build time (§2.8): Vite replaces MODE with a constant, so the web bundle holds
+// no Tauri code. The desktop app has no drag-and-drop.
+let platform: Platform;
+if (import.meta.env.MODE === 'desktop') {
+  const { tauriPlatform } = await import('./platform-tauri');
+  platform = tauriPlatform($<HTMLInputElement>('file'));
+  nameEl.textContent = 'no file open';
+} else {
+  platform = webPlatform($<HTMLInputElement>('file'), $<HTMLElement>('drop'));
+}
+
+platform.onFile((file) => {
   // Reset in the same task, before the new src (§2.3 "Reset on a new file").
   player.reset();
   loaded = true;
