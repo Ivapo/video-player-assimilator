@@ -2,3 +2,5 @@
 
 # Rules
 
+- **[player](player.md)** — generated 2026-09-29 · 9 sources · 63/90 lines
+  The web player as built: stack, platform layer, frame-duration estimate, step, stale-picture detection, fixtures, the gate, the deploy, and what each browser does
