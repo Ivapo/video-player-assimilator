@@ -1,0 +1,6 @@
+{
+  "identifier": "default",
+  "description": "What the page needs: listen for the shell's `opened` event (spec vpa-001 §2.10).",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

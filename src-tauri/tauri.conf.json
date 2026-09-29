@@ -1,0 +1,43 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Video Player Assimilator",
+  "version": "../package.json",
+  "identifier": "com.ivapo.video-player-assimilator",
+  "build": {
+    "frontendDist": "../dist-desktop",
+    "beforeBuildCommand": "npm run build:desktop"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Video Player — Assimilator",
+        "width": 960,
+        "height": 760,
+        "create": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "fileAssociations": [
+      {
+        "ext": ["mp4"],
+        "mimeType": "video/mp4",
+        "name": "MPEG-4 video",
+        "role": "Viewer"
+      }
+    ]
+  }
+}

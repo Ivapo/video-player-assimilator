@@ -1,0 +1,29 @@
+[package]
+name = "video-player-assimilator"
+version = "0.2.0"
+description = "A video player that steps one frame at a time (spec vpa-001)"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# One minor for the crate, @tauri-apps/api and the CLI: the CLI refuses a mismatch (R2-N2).
+tauri = { version = "~2.12", features = [] }
+tauri-plugin-dialog = "2"
+percent-encoding = "2"
+serde_json = "1"
+
+[target.'cfg(any(windows, target_os = "linux"))'.dependencies]
+# A second launch hands its argv to the running app (§2.10). macOS uses RunEvent::Opened.
+tauri-plugin-single-instance = "2"
+
+[dev-dependencies]
+tempfile = "3"
+
+[features]
+# The gate build (§2.12): the in-page agent, the per-request log and `gate_open`.
+# Off by default; CI and the release never enable it.
+gate = []

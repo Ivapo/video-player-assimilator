@@ -16,7 +16,7 @@
     "test:desktop": "tsx test/desktop/run.ts",
     "fixtures": "bash scripts/make-fixture.sh",
     "tauri": "tauri",
-    "tauri:gate": "CARGO_TARGET_DIR=src-tauri/target-gate tauri build --bundles app --features gate"
+    "tauri:gate": "CARGO_TARGET_DIR=target-gate tauri build --bundles app --features gate"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
