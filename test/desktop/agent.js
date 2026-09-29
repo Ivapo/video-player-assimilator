@@ -23,13 +23,19 @@
     let cur = null;
     new MutationObserver(() => {
       if (!v.getAttribute('src')) return;
-      cur = { src: v.getAttribute('src'), srcSet: performance.now() };
+      cur = { src: v.getAttribute('src'), srcSet: performance.now(), callbacks: 0 };
       loads.push(cur);
       const load = cur;
-      v.requestVideoFrameCallback((_now, m) => {
-        load.firstFrame = performance.now();
-        load.firstMediaTime = m.mediaTime;
-      });
+      // Every presented frame of this load (C(c) records the count).
+      const onFrame = (_now, m) => {
+        if (load !== cur) return;
+        if (load.callbacks++ === 0) {
+          load.firstFrame = performance.now();
+          load.firstMediaTime = m.mediaTime;
+        }
+        v.requestVideoFrameCallback(onFrame);
+      };
+      v.requestVideoFrameCallback(onFrame);
       // A new file abandons a seek in flight: its `seeked` never comes (§2.3).
       for (const s of seeks) if (s.end === null) s.end = 'abandoned';
     }).observe(v, { attributes: true, attributeFilter: ['src'] });
