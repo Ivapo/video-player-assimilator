@@ -2,7 +2,7 @@
 
 A simple video player under the Assimilator brand. TypeScript, Vite, Tauri. One `src/` for
 a web build (GitHub Pages) and a desktop app. Playback uses the browser `<video>` tag.
-Orchestration notes: `~/dev/ivapo/video-player-assimilator`.
+Orchestration notes: `~/dev/ivapo/Orchtr-video-player-asmltr`.
 
 ## Development flow
 

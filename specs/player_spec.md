@@ -19,7 +19,7 @@ supersedes: null
 superseded_by: null
 related: []
 reference: >
-  Seed brief: ~/dev/ivapo/video-player-assimilator/idea.md (the idea, the decisions so far,
+  Seed brief: ~/dev/ivapo/Orchtr-video-player-asmltr/idea.md (the idea, the decisions so far,
   the open questions). Out of scope from it: playing formats the browser cannot play
   (`ffmpeg.wasm`, `libmpv`), and upload or share links.
 ---
