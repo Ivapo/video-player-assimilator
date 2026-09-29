@@ -62,7 +62,7 @@ export const HELPERS = String.raw`
       while (!(G.presented !== null && Math.round(G.presented * fps) === k) && performance.now() - t0 < 1000) {
         await G.sleep(2);
       }
-      return G.readFrame();
+      return { frame: G.readFrame(), stale: ro().dataset.stale === 'true' };
     },
     // A script seek, as the gate's "Seek to t": set currentTime and wait for seeked.
     async seek(t) {
@@ -131,22 +131,47 @@ async function pause(drv: Driver) {
   await waitFor(drv, `d.paused && d.pending === 'false'`, 'pause and snap');
 }
 
-async function seekTo(drv: Driver, frameMid: number, fps: number, expectK: number) {
-  await drv.run(`await G.seek(${frameMid}/${fps})`);
-  const got = await drv.run<number>(`return G.settleRead(${expectK}, ${fps})`);
-  check(got === expectK, `seek to ${frameMid}/${fps}: pixels read ${got}, expected ${expectK}`);
+/**
+ * Stale-picture allowance (amended at the build): in Safari, B.3 and C(b) pass a read whose
+ * pixels are wrong if the player flagged the picture stale. Everywhere else, and in Chrome,
+ * the pixels must be right.
+ */
+interface Reads {
+  allowStale: boolean;
+  /** Reads that passed only because the picture was flagged stale. */
+  staleAccepted: number;
+  /** Reads with data-stale="true" at all (in Chrome, any is a false warning). */
+  staleFlagged: number;
+}
+const strict = (): Reads => ({ allowStale: false, staleAccepted: 0, staleFlagged: 0 });
+
+async function readAt(drv: Driver, k: number, fps: number, reads: Reads, what: string) {
+  const r = await drv.run<{ frame: number; stale: boolean }>(`return G.settleRead(${k}, ${fps})`);
+  if (r.stale) reads.staleFlagged++;
+  if (r.frame === k) return r.frame;
+  check(reads.allowStale && r.stale, `${what}: pixels read ${r.frame}, expected ${k} (data-stale=${r.stale})`);
+  reads.staleAccepted++;
+  return r.frame;
 }
 
-/** One key, wait, read; the pixels must show `expect`. Returns the list of reads. */
-async function stepAndRead(drv: Driver, key: '.' | ',', expected: number[], fps: number, label: string) {
-  const reads: number[] = [];
+async function seekTo(drv: Driver, frameMid: number, fps: number, expectK: number, reads = strict()) {
+  await drv.run(`await G.seek(${frameMid}/${fps})`);
+  await readAt(drv, expectK, fps, reads, `seek to ${frameMid}/${fps}`);
+}
+
+/** One key, wait, read; the pixels must show each expected frame. */
+async function stepAndRead(
+  drv: Driver,
+  key: '.' | ',',
+  expected: number[],
+  fps: number,
+  label: string,
+  reads = strict(),
+) {
   for (const k of expected) {
     await drv.key(key);
-    const got = await drv.run<number>(`return G.settleRead(${k}, ${fps})`);
-    reads.push(got);
-    check(got === k, `${label}: after a '${key}' expected frame ${k}, pixels read ${got}`);
+    await readAt(drv, k, fps, reads, `${label}: after a '${key}'`);
   }
-  return reads;
 }
 
 async function snapRecord(drv: Driver) {
@@ -195,8 +220,9 @@ export async function gateB(drv: Driver) {
   const snap = await snapRecord(drv);
   // B.3
   await pause(drv);
-  await seekTo(drv, 10.5, 60, 10);
-  await stepAndRead(drv, '.', range(11, 51), 60, 'B.3');
+  const b3: Reads = { ...strict(), allowStale: drv.browser === 'safari' };
+  await seekTo(drv, 10.5, 60, 10, b3);
+  await stepAndRead(drv, '.', range(11, 51), 60, 'B.3', b3);
   // B.4
   await seekTo(drv, 250.5, 60, 250);
   await stepAndRead(drv, ',', range(210, 250).reverse(), 60, 'B.4');
@@ -204,7 +230,7 @@ export async function gateB(drv: Driver) {
   await seekTo(drv, 299.5, 60, 299);
   await stepAndRead(drv, '.', [299], 60, 'B.5 clamp at last');
   d = await data(drv);
-  return { at1s, snap };
+  return { at1s, snap, b3: { staleAccepted: b3.staleAccepted, staleFlagged: b3.staleFlagged } };
 }
 
 export async function gateCb(drv: Driver) {
@@ -231,9 +257,10 @@ export async function gateCb(drv: Driver) {
   d = await data(drv);
   check(!d.ended, 'C(b): clip ended before the snap');
   await pause(drv);
-  await seekTo(drv, 100.5, 60, 100);
-  await stepAndRead(drv, '.', [101, 102, 103], 60, 'C(b)');
-  return { snap };
+  const cb: Reads = { ...strict(), allowStale: drv.browser === 'safari' };
+  await seekTo(drv, 100.5, 60, 100, cb);
+  await stepAndRead(drv, '.', [101, 102, 103], 60, 'C(b)', cb);
+  return { snap, reads: { staleAccepted: cb.staleAccepted, staleFlagged: cb.staleFlagged } };
 }
 
 export async function gateCc(drv: Driver) {

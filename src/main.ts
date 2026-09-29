@@ -19,6 +19,7 @@ const MESSAGES = {
   measuring: 'measuring frame rate…',
   uncertain: 'frame rate uncertain',
   unsupported: 'frame rate higher than this display can show; stepping not supported yet',
+  stale: "Safari didn't update the picture: the frame shown may be wrong",
 } as const;
 
 const player = new StepController(video, render);
@@ -55,6 +56,7 @@ function render(): void {
     `media time ${mt === null ? '–' : mt.toFixed(6) + ' s'}`,
     `d ${est.d === null ? '–' : (est.d * 1000).toFixed(4) + ' ms'}`,
     message,
+    v.stale ? MESSAGES.stale : '',
   ]
     .filter(Boolean)
     .join('  ·  ');
@@ -65,6 +67,7 @@ function render(): void {
   data.dMs = dMs;
   data.dSnapped = String(est.status === 'snapped');
   data.pending = String(v.pending);
+  data.stale = String(v.stale);
   // Measurement attributes, beyond §2.3's list, for the gate's timing report.
   data.status = v.noCallback ? 'no-callback' : est.status;
   data.n = String(est.N);

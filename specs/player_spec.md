@@ -321,6 +321,29 @@ Frames are numbered from 0: with frame duration `d`, frame `k` covers
     unknown, it skips only that step, and `kValid` stays false. Then it takes the head of
     `queue`, if there is one, and handles it as a fresh step press. While `d` is unknown,
     step is disabled, so the queue is empty.
+- **Stale picture after a paused seek** (amended at the build by the user's decision,
+  without a review round; the gate verifies it).
+  - **The limitation.** Safari 26.6.2 sometimes keeps the old picture after a seek while
+    paused. It re-presents the pre-seek frame, and no frame callback for the target
+    follows. Measured over the C(b) sequence, 20 runs each:
+    - stale in 10/20 as run, and in 12/20 with Safari frontmost and uncovered (visible,
+      focused);
+    - re-seeking to the target, or to target + d/4, healed 0 of 5;
+    - `play()` then `pause()` healed 0 of 7.
+    It is not fixable in Phase 1. **Chrome is fully supported in Phase 1**; Safari steps
+    correctly, but its picture can be wrong after a paused seek.
+  - **Detection.** After a seek completes while paused and `d` is known, the target is
+    the `k` set by the `seeked` handler. A frame callback **shows the target** when
+    `round(mediaTime / d) = k`. Every callback since `seeking` counts, whatever its
+    registration generation, so one that arrived before `seeked` counts too. If none
+    shows the target within **250 ms**, the readout shows **"Safari didn't update the
+    picture: the frame shown may be wrong"** and sets `data-stale="true"`.
+  - `k` is unaffected. The warning clears at the next callback that shows the target.
+    Playback (a `play` event) and a new file also clear it, since the picture is
+    replaced then. A new seek replaces the target.
+  - A check of the same form in the build's diagnostic (250 ms, a callback showing the
+    target) was measured against the pixels. In two soaks of 20 runs it fired in exactly
+    the stale runs, 5 and 7, and in no correct one.
 - **The snap.** It puts the picture on the middle of the frame the video stopped on, so
   that the screen and `k` agree before a step uses `k`.
   - **The seek:** `t = video.currentTime`, read while the video is paused. The target
@@ -565,7 +588,12 @@ step it frame by frame.*
   comes within 1 s (the clamp case, where the frame on screen does not change), it goes
   on. Then it reads the pixels. (Amended at the build by the user's decision: it used to
   wait for any one callback, or 100 ms. A callback registered before a seek can fire
-  after it for the old frame, which released the read too early.) The Chrome run then repeats A.1–A.4
+  after it for the old frame, which released the read too early.)
+
+  **Stale picture, Safari only** (amended at the build by the user's decision). In the
+  Safari run, B.3 and C(b) accept a read whose pixels are wrong if the readout has
+  `data-stale="true"` (§2.3, "Stale picture after a paused seek"). Every other read, and
+  every read in the Chrome run, must show the right frame. The Chrome run then repeats A.1–A.4
   against the deployed Pages URL, which proves the deploy serves the working player and
   not just a page.
 - **Manual one-time setup** (not code): install `ffmpeg-full`; enable Pages with source

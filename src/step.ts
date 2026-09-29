@@ -358,8 +358,16 @@ export interface StepView {
   /** Step is available: d is known and the browser has the callback. */
   enabled: boolean;
   noCallback: boolean;
+  /** After a paused seek, no frame callback showed the target within STALE_MS. */
+  stale: boolean;
   estimate: EstimateState;
 }
+
+/**
+ * After a paused seek, the time a frame callback has to show the target frame before the
+ * picture is flagged stale (amended at the build: Safari sometimes keeps the old picture).
+ */
+export const STALE_MS = 250;
 
 type FrameCallbackVideo = HTMLVideoElement & {
   requestVideoFrameCallback?: (
@@ -396,6 +404,14 @@ export class StepController {
   private frameGen = 0;
   private frameHandle: number | null = null;
 
+  // Stale-picture detection (Safari). Every callback counts here, whatever its generation.
+  private stale = false;
+  /** The frame a paused seek landed on, until a callback shows it. */
+  private staleTarget: number | null = null;
+  private staleTimer: ReturnType<typeof setTimeout> | null = null;
+  /** mediaTimes of callbacks since the current seek started. */
+  private sinceSeek: number[] = [];
+
   constructor(video: HTMLVideoElement, onChange: () => void) {
     this.video = video as FrameCallbackVideo;
     this.onChange = onChange;
@@ -404,12 +420,21 @@ export class StepController {
     this.est = new Estimator(this.hasQuality);
 
     video.addEventListener('seeked', () => this.onSeeked());
-    video.addEventListener('seeking', () => this.endRun());
+    video.addEventListener('seeking', () => {
+      this.endRun();
+      this.sinceSeek = [];
+      this.staleTarget = null;
+      this.clearStaleTimer();
+    });
     video.addEventListener('pause', () => this.onPause());
     video.addEventListener('ended', () => this.onEnded());
     video.addEventListener('play', () => {
       this.kValid = false;
       this.ownPaused = false;
+      // Playback replaces the picture: a stale warning no longer applies.
+      this.stale = false;
+      this.staleTarget = null;
+      this.clearStaleTimer();
       this.onChange();
     });
     video.addEventListener('loadedmetadata', () => this.onChange());
@@ -428,6 +453,10 @@ export class StepController {
     this.est = new Estimator(this.hasQuality);
     this.runId++;
     this.lastMediaTime = NaN;
+    this.stale = false;
+    this.staleTarget = null;
+    this.sinceSeek = [];
+    this.clearStaleTimer();
     // A file arriving mid-seek never fires that seek's `seeked`: register afresh.
     this.watchFrames();
     this.onChange();
@@ -441,6 +470,7 @@ export class StepController {
       lastMediaTime: this.lastMediaTime,
       enabled: this.enabled(),
       noCallback: this.noCallback,
+      stale: this.stale,
       estimate: this.est.state(),
     };
   }
@@ -562,6 +592,7 @@ export class StepController {
       this.k = clamp(Math.floor(t / d + 0.001), 0, this.last());
       this.kTime = t;
       this.kValid = true;
+      if (this.video.paused) this.watchForTarget(this.k, d);
     }
     const next = this.queue.shift();
     if (next !== undefined) this.step(next);
@@ -588,7 +619,46 @@ export class StepController {
     this.onChange();
   }
 
+  /**
+   * A paused seek landed on frame `target`: a frame callback must show it, round(mediaTime
+   * / d) = target, within STALE_MS, or the picture is flagged stale. A callback that came
+   * before `seeked` counts.
+   */
+  private watchForTarget(target: number, d: number): void {
+    this.clearStaleTimer();
+    if (this.sinceSeek.some((t) => Math.round(t / d) === target)) {
+      this.stale = false;
+      this.staleTarget = null;
+      return;
+    }
+    this.staleTarget = target;
+    this.staleTimer = setTimeout(() => {
+      this.staleTimer = null;
+      if (this.staleTarget !== null) {
+        this.stale = true;
+        this.onChange();
+      }
+    }, STALE_MS);
+  }
+
+  private clearStaleTimer(): void {
+    if (this.staleTimer !== null) clearTimeout(this.staleTimer);
+    this.staleTimer = null;
+  }
+
   private onFrame(gen: number, meta: { mediaTime: number }): void {
+    // Stale-picture detection sees every callback, whatever its generation.
+    this.sinceSeek.push(meta.mediaTime);
+    if (this.sinceSeek.length > 8) this.sinceSeek.shift();
+    const d = this.d();
+    if (this.staleTarget !== null && d !== null && Math.round(meta.mediaTime / d) === this.staleTarget) {
+      this.staleTarget = null;
+      this.clearStaleTimer();
+      if (this.stale) {
+        this.stale = false;
+        this.onChange();
+      }
+    }
     // A cancelled registration that still fires: its frame is from before the seek.
     if (gen !== this.frameGen) return;
     this.watchFrames();

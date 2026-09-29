@@ -1,7 +1,7 @@
 // Gate C(a), build amendment: a stale frame callback after a seek must not seed a bogus gap
 // (Safari, d = 2.08 ms). Drives the real StepController with a scripted <video>.
-import { describe, expect, it } from 'vitest';
-import { StepController } from '../../src/step';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { STALE_MS, StepController } from '../../src/step';
 
 type FrameCb = (now: number, meta: { mediaTime: number }) => void;
 
@@ -130,5 +130,64 @@ describe('C(a) — a stale callback after a seek does not seed a bogus gap', () 
     video.fire(Math.round((50 / 60) * 1000) / 1000 + 0.00208);
     playFrames(51, 299);
     expectSnappedTo60(est());
+  });
+});
+
+describe('stale picture after a paused seek (Safari): detected, not fixed', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  /** Snapped at 1/60, then paused and settled on a known frame. */
+  function snappedAndPaused() {
+    const t = setup();
+    t.player.play();
+    t.playFrames(0, 240);
+    expect(t.est().d).toBe(1 / 60);
+    t.video.pause();
+    return t;
+  }
+  const seekPaused = (video: FakeVideo, player: StepController, frame: number) => {
+    player.seekTo((frame + 0.5) / 60);
+    video.finishSeek();
+  };
+
+  it('no warning when a callback shows the target within 250 ms', () => {
+    const { video, player } = snappedAndPaused();
+    seekPaused(video, player, 100);
+    video.present(100);
+    vi.advanceTimersByTime(STALE_MS + 50);
+    expect(player.view().stale).toBe(false);
+    expect(player.view().k).toBe(100);
+  });
+
+  it('a callback that came before `seeked` counts', () => {
+    const { video, player } = snappedAndPaused();
+    player.seekTo(100.5 / 60);
+    video.present(100); // presented while seeking
+    video.finishSeek();
+    vi.advanceTimersByTime(STALE_MS + 50);
+    expect(player.view().stale).toBe(false);
+  });
+
+  it('no callback for the target: stale after 250 ms, k unaffected; clears when the target shows', () => {
+    const { video, player } = snappedAndPaused();
+    seekPaused(video, player, 100);
+    video.fire(4.0); // Safari re-presents the old frame
+    vi.advanceTimersByTime(STALE_MS - 10);
+    expect(player.view().stale).toBe(false);
+    vi.advanceTimersByTime(20);
+    expect(player.view().stale).toBe(true);
+    expect(player.view().k).toBe(100);
+    video.present(100);
+    expect(player.view().stale).toBe(false);
+  });
+
+  it('playback clears the warning', () => {
+    const { video, player } = snappedAndPaused();
+    seekPaused(video, player, 100);
+    vi.advanceTimersByTime(STALE_MS + 10);
+    expect(player.view().stale).toBe(true);
+    player.play();
+    expect(player.view().stale).toBe(false);
   });
 });
