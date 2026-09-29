@@ -85,64 +85,114 @@ Frames are numbered from 0: with frame duration `d`, frame `k` covers
   callback registered for the life of the video, and each call records the presented
   frame's `mediaTime` as `lastMediaTime`. While the video plays, the gap between two
   consecutive `mediaTime`s is one frame, or a whole multiple of one when a frame was
-  skipped. After 10 gaps have been collected, the estimate is `d` = the smallest gap
-  greater than 1 ms. Taking the minimum is what makes skipped callbacks harmless. The
-  estimate is reset when a new file arrives.
+  skipped. After 10 gaps have been collected, the measured duration `d_m` is the smallest
+  gap greater than 1 ms. Taking the minimum is what makes skipped callbacks harmless.
+  The estimate is reset when a new file arrives.
+- **Snapping `d` to a standard rate** (decision, recorded, review round 6).
+  - **The candidates** are every whole rate `n` fps and every `n × 1000/1001` fps, for
+    `n` = 1…240.
+  - **The rule:** if the candidate duration nearest to `d_m` is within **±2 µs** of it,
+    `d` is that candidate's exact duration, `1/n` or `1001/(1000·n)`. Otherwise `d = d_m`.
+  - **Why ±2 µs:** Chrome rounds `mediaTime` to whole µs (measured in round 5), so a
+    gap between two rounded values is off by at most 1 µs. The closest two candidates
+    are 240 and 239.76 fps, which are 4.167 µs apart in duration. A tolerance of 2 µs is
+    at least the worst measurement error and less than half of that separation, so a
+    measured gap can only snap to its own rate. The fixture measures
+    `d_m` = 0.033333 s. That is 0.33 µs from `1/30`, so it snaps to exactly `1/30`.
+  - **Drift bound, snapped:** `d` equals the true frame duration of a constant-rate file
+    at that rate. The step target `(k + 0.5)·d` then carries only double-precision error,
+    under 1 ns at any `k` below 10⁷ frames. That is nothing next to the half-frame
+    margin, so there is no drift at any practical file length.
+  - **Drift bound, not snapped:** the error in `d` is at most `δ` = 1 µs. The step
+    target for frame `k` lands in the right frame while `k·δ < d/2`. That means frames
+    `k < d/(2δ)`, or times up to `d²/(2δ)`. At 30 fps that is 16 667 frames, about 9.3
+    min; at 60 fps, 8 333 frames, about 2.3 min. Past that point, steps can land one
+    frame off, and `k` disagrees with the screen by one.
+    - A rate that is not a candidate is either a constant rate above 240 fps or a
+      variable rate (OQ-2). Phase 1 accepts this bound for both.
+  - Measured on a 60 fps file in round 5: the error of the unsnapped `d` showed up past
+    k ≈ 12 000. Snapping removes it for any standard rate.
 - **Before an estimate exists.** The step buttons and keys are disabled, and the readout
   says "play to measure frame rate". The estimate is taken the first time the video
   plays, whether the user starts that playback or it plays for any other reason. Nothing
   plays on the user's behalf.
-- **The frame index `k`** (decision, recorded, review round 5). The player keeps `k` as
-  its own state. It is set in exactly two ways:
+- **Player state** (decision, recorded, review round 6). The step logic decides from
+  state the player owns. `video.seeking` is never a pending signal: its only use is the
+  guard in the `seeked` handler below. The state is:
+  - `k`: the frame index;
+  - `kTime`: the `currentTime` read when `k` was last set;
+  - `kValid`: "k valid";
+  - `pending`;
+  - `ownPaused`: the player's own record of whether the video is paused;
+  - one FIFO `queue` of step presses.
+- **The frame index `k`.** It is set in exactly two ways:
   1. A step sets `k = clamp(k ± 1, 0, last)`, where `last = round(duration / d) − 1`.
      For the fixture that is `round(90.0 ± ε) − 1 = 89`; `floor` would give 88 when
      floating point comes out just under 90.
-  2. Every `seeked` event, whoever started the seek, sets
-     `k = clamp(floor(currentTime / d + 0.001), 0, last)`. The `+ 0.001` frame is an
-     epsilon, so a seek landing exactly on the boundary `k·d` reads as `k` and not `k − 1`
-     when floating point comes out just under it. For a mid-frame target, `(k + 0.5)·d`,
-     the epsilon changes nothing.
+  2. The `seeked` handler sets `k = clamp(floor(currentTime / d + 0.001), 0, last)` and
+     `kTime = currentTime`. The `+ 0.001` frame is an epsilon, so a seek landing exactly
+     on the boundary `k·d` reads as `k` and not `k − 1` when floating point comes out
+     just under it. For a mid-frame target, `(k + 0.5)·d`, the epsilon changes nothing.
+     This applies to every seek, whoever started it: a step, the snap, a scrub, or a
+     script.
 
-  Nothing reads `lastMediaTime` to set `k`. `lastMediaTime` feeds only the estimate of `d`
-  and the readout.
-- **Pending.** A seek is pending while `video.seeking` is true, whoever started it: a
-  step, the snap below, a scrub, or a script. It ends at the next `seeked`. A seek
-  started during another replaces it, and the browser fires one `seeked` for the last
-  one. Setting `currentTime` always runs a seek and fires `seeked`, even when the target
-  equals the current position, as it does at a clamp. Presses made while a seek is
-  pending go into one queue. After each `seeked` has set `k`, the head of the queue is
-  taken out and handled as if it had just been pressed, so it may itself start a seek
-  and wait again.
-- **The snap.** When playback stops, the player seeks to the middle of the frame the
-  video stopped on, so the picture on screen and `k` agree before any step uses `k`.
-  The target is `(clamp(floor(t / d + 0.001), 0, last) + 0.5) · d`, with
-  `t = video.currentTime` read right after `pause()`. The snap is a pending seek like any
-  other, and its `seeked` sets `k` by rule 2.
-  - **Why `currentTime` and not `lastMediaTime`:** `currentTime` can be read in the same
-    call that pauses the video. `lastMediaTime` depends on a frame callback, and the
-    callback for the last frame before a pause can arrive late or not at all (round 4,
-    non-blocking note). So `lastMediaTime` can be one frame stale at the moment of the
-    snap. `currentTime` can also disagree with the frame on screen by up to one frame.
-    The cost of either error is the same: the picture moves by one frame when playback
-    stops. `k` is right either way, because the snap's `seeked` sets `k` from the frame
-    it seeked to, and that is the frame then shown.
-  - **Where it starts.** For a pause the player makes itself (the play/pause button,
-    space, or a step pressed while playing), the snap starts at the player's own
-    `pause()` call, in the same task. It does not wait for the `pause` event. The player
-    counts its own `pause()` calls made while the video was playing. Each such `pause`
-    event uses up one count and does nothing more.
-  - **A `pause` event the player did not cause**, such as an OS media key or a script,
-    snaps only when no seek is pending (`video.seeking` is false). When a seek is already
-    in flight, that seek's `seeked` sets `k`.
-  - **`ended`.** The snap goes to the last frame, `(last + 0.5) · d`, unless a seek is
-    already pending. Browsers fire `pause` before `ended` at the end of the media, and
-    that `pause` is not the player's own, so it may already have started the snap. The
-    clamp in the target sends that snap to `last` as well.
-- **The step.** When the video is paused and no seek is pending: set
-  `k = clamp(k ± 1, 0, last)`, then set `currentTime` to `(k + 0.5) · d`. The half-frame
-  offset aims at the middle of the frame, so a rounding error cannot land on the
-  neighbor. When a seek is pending, the press is queued. When the video is playing, the
-  step pauses it, which starts the snap, and the ±1 is queued behind the snap.
+  Nothing reads `lastMediaTime` to set `k`. `lastMediaTime` feeds only the estimate of
+  `d` and the readout.
+- **`kValid`.** It is true only once a `seeked` handler has set `k`. It becomes false in
+  four cases:
+  - The player starts a seek: a step, the snap, or its own seek bar.
+  - Playback starts: the player's own `play()` call, or any `play` event.
+  - A `pause` or `ended` event arrives that the player did not cause.
+  - A step finds that the video has moved without the player knowing. That is,
+    `video.paused !== ownPaused`, or `video.currentTime !== kTime`. The step then sets
+    `ownPaused = video.paused`. The second check catches a script's seek in the same
+    task, before any event arrives.
+- **`pending`.** It is set when the player itself sets `currentTime` (a step, the snap,
+  or its seek bar). It is cleared only in the player's `seeked` handler. The keyboard
+  and button handlers decide whether to queue a step press from `pending` alone.
+- **The `seeked` handler.**
+  - If `video.seeking` is true when `seeked` is dispatched, a newer seek is already in
+    flight, and the handler returns and waits for that seek's `seeked`. Chrome fires two
+    `seeked` events when a second seek starts after `seeking` has gone false (round 5,
+    measured). This is the only place the player reads `video.seeking`. It is not a
+    pending signal.
+  - Otherwise the handler sets `k` and `kTime` by rule 2, sets `kValid = true` and
+    `pending = false`. It then takes the head of `queue`, if there is one, and handles
+    it as a fresh step press.
+- **The snap.** It puts the picture on the middle of the frame the video stopped on, so
+  that the screen and `k` agree before a step uses `k`.
+  - **The seek:** `t = video.currentTime`, read while the video is paused. The target
+    is `(clamp(floor(t / d + 0.001), 0, last) + 0.5)·d`. The snap sets `pending` and
+    clears `kValid`, like any seek the player starts.
+  - **When it happens:** at the player's own `pause()` call site, in the same task. That
+    covers the play/pause button, space, and a step pressed while playing. It also
+    happens inside a step that finds `kValid` false.
+  - **A pause the player did not cause** does not snap by itself. Examples: an OS media
+    key, a script, or the end of the media, where browsers fire `pause` and then
+    `ended`. Its event handler only sets `ownPaused = true` and `kValid = false`, and
+    the next step snaps. At the end of the media, `t = duration`, so the clamp sends the
+    snap to `last`. A script seek that follows a foreign pause (for example the gate's
+    `video.pause()` and then a seek) is not raced by a snap.
+  - **Why `t = currentTime` and not `lastMediaTime`:** `currentTime` can be read in the
+    same task as the pause. The frame callback for the last frame before a pause can
+    arrive late or not at all (round 4, non-blocking). Either value can be one frame
+    off the screen; round 5 measured `currentTime` one frame behind in Chrome. The cost
+    is the same either way: the picture moves by one frame when playback stops. `k` is
+    right either way, because the snap's `seeked` sets `k` from the frame it seeked to,
+    and that is the frame then shown.
+- **Play and pause presses** are never queued. They act at once, even while `pending`
+  is set. A pause during a pending seek snaps, and that snap replaces the pending seek.
+- **The step** (a `.`/`,` press or a button, or the head of `queue`):
+  1. If `pending` is set, append the press to the tail of `queue` and stop.
+  2. Run the moved-without-knowing check (see `kValid`).
+  3. If `kValid` is false: if the video is playing, call the player's own `pause()`,
+     which snaps. Otherwise snap. Then put the ±1 at the **head** of `queue`, ahead of
+     presses already waiting, because it is the oldest press. Stop.
+  4. Otherwise set `k = clamp(k ± 1, 0, last)`, set `kValid = false` and
+     `pending = true`, and set `currentTime` to `(k + 0.5)·d`. The half-frame offset
+     aims at the middle of the frame, so a rounding error cannot land on the neighbor.
+     Setting `currentTime` always runs a seek and fires `seeked`, even when the target
+     equals the current position, as it does at a clamp.
 - **Where the callback is missing** (Phase 1, OQ-1): step is disabled for good, and the
   readout says the browser cannot step frames. There is no typed frame rate in Phase 1.
 
