@@ -169,6 +169,37 @@ describe('stale picture after a paused seek (Safari): detected, not fixed', () =
     expect(player.view().stale).toBe(false);
   });
 
+  it('a target callback that arrives before `seeking` is dispatched counts (Chrome, fast steps)', () => {
+    const { video, player } = snappedAndPaused();
+    // The player writes currentTime; the frame is presented before `seeking` fires.
+    player.seekTo(100.5 / 60); // the fake dispatches `seeking` synchronously, so present after
+    video.present(100);
+    video.dispatchEvent(new Event('seeking')); // a late `seeking` for the same seek
+    video.finishSeek();
+    vi.advanceTimersByTime(STALE_MS + 50);
+    expect(player.view().stale).toBe(false);
+  });
+
+  it('seeking to the frame already shown (no new callback) is not stale', () => {
+    const { video, player } = snappedAndPaused();
+    seekPaused(video, player, 100);
+    video.present(100);
+    seekPaused(video, player, 100); // same frame: no frame is presented
+    vi.advanceTimersByTime(STALE_MS + 50);
+    expect(player.view().stale).toBe(false);
+  });
+
+  it('an older callback for the target does not count once another frame was presented', () => {
+    const { video, player } = snappedAndPaused();
+    seekPaused(video, player, 100);
+    video.present(100);
+    seekPaused(video, player, 150);
+    video.present(150);
+    seekPaused(video, player, 100); // Safari keeps 150 on screen: no callback for 100
+    vi.advanceTimersByTime(STALE_MS + 10);
+    expect(player.view().stale).toBe(true);
+  });
+
   it('no callback for the target: stale after 250 ms, k unaffected; clears when the target shows', () => {
     const { video, player } = snappedAndPaused();
     seekPaused(video, player, 100);

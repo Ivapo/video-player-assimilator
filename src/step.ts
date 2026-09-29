@@ -373,7 +373,6 @@ type FrameCallbackVideo = HTMLVideoElement & {
   requestVideoFrameCallback?: (
     cb: (now: number, meta: { mediaTime: number }) => void,
   ) => number;
-  cancelVideoFrameCallback?: (handle: number) => void;
 };
 
 export class StepController {
@@ -402,15 +401,14 @@ export class StepController {
    * pre-seek frame) is ignored.
    */
   private frameGen = 0;
-  private frameHandle: number | null = null;
 
   // Stale-picture detection (Safari). Every callback counts here, whatever its generation.
   private stale = false;
   /** The frame a paused seek landed on, until a callback shows it. */
   private staleTarget: number | null = null;
   private staleTimer: ReturnType<typeof setTimeout> | null = null;
-  /** mediaTimes of callbacks since the current seek started. */
-  private sinceSeek: number[] = [];
+  /** The latest frame callback's mediaTime, from any registration: the frame on screen. */
+  private lastPresented = NaN;
 
   constructor(video: HTMLVideoElement, onChange: () => void) {
     this.video = video as FrameCallbackVideo;
@@ -422,7 +420,6 @@ export class StepController {
     video.addEventListener('seeked', () => this.onSeeked());
     video.addEventListener('seeking', () => {
       this.endRun();
-      this.sinceSeek = [];
       this.staleTarget = null;
       this.clearStaleTimer();
     });
@@ -455,7 +452,7 @@ export class StepController {
     this.lastMediaTime = NaN;
     this.stale = false;
     this.staleTarget = null;
-    this.sinceSeek = [];
+    this.lastPresented = NaN;
     this.clearStaleTimer();
     // A file arriving mid-seek never fires that seek's `seeked`: register afresh.
     this.watchFrames();
@@ -568,17 +565,16 @@ export class StepController {
     this.runId++;
   }
 
+  /**
+   * Register a fresh frame callback. The old registration is not cancelled: after a paused
+   * seek, the target frame's callback can arrive on it after `seeked`, and stale-picture
+   * detection needs it. Its generation is no longer current, so it feeds only that
+   * detection, and it does not register again.
+   */
   private watchFrames(): void {
     if (this.noCallback) return;
-    this.unwatchFrames();
-    const gen = this.frameGen;
-    this.frameHandle = this.video.requestVideoFrameCallback!((_now, meta) => this.onFrame(gen, meta));
-  }
-
-  private unwatchFrames(): void {
-    if (this.frameHandle !== null) this.video.cancelVideoFrameCallback?.(this.frameHandle);
-    this.frameHandle = null;
-    this.frameGen++;
+    const gen = ++this.frameGen;
+    this.video.requestVideoFrameCallback!((_now, meta) => this.onFrame(gen, meta));
   }
 
   private onSeeked(): void {
@@ -620,13 +616,14 @@ export class StepController {
   }
 
   /**
-   * A paused seek landed on frame `target`: a frame callback must show it, round(mediaTime
-   * / d) = target, within STALE_MS, or the picture is flagged stale. A callback that came
-   * before `seeked` counts.
+   * A paused seek landed on frame `target`. The picture is the last presented frame, so
+   * the latest frame callback must show it, round(mediaTime / d) = target: already at
+   * `seeked` (it can arrive before `seeking` is dispatched, or the frame may not change),
+   * or within STALE_MS after. Otherwise the picture is flagged stale.
    */
   private watchForTarget(target: number, d: number): void {
     this.clearStaleTimer();
-    if (this.sinceSeek.some((t) => Math.round(t / d) === target)) {
+    if (Math.round(this.lastPresented / d) === target) {
       this.stale = false;
       this.staleTarget = null;
       return;
@@ -648,8 +645,7 @@ export class StepController {
 
   private onFrame(gen: number, meta: { mediaTime: number }): void {
     // Stale-picture detection sees every callback, whatever its generation.
-    this.sinceSeek.push(meta.mediaTime);
-    if (this.sinceSeek.length > 8) this.sinceSeek.shift();
+    this.lastPresented = meta.mediaTime;
     const d = this.d();
     if (this.staleTarget !== null && d !== null && Math.round(meta.mediaTime / d) === this.staleTarget) {
       this.staleTarget = null;

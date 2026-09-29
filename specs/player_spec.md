@@ -334,10 +334,16 @@ Frames are numbered from 0: with frame duration `d`, frame `k` covers
     correctly, but its picture can be wrong after a paused seek.
   - **Detection.** After a seek completes while paused and `d` is known, the target is
     the `k` set by the `seeked` handler. A frame callback **shows the target** when
-    `round(mediaTime / d) = k`. Every callback since `seeking` counts, whatever its
-    registration generation, so one that arrived before `seeked` counts too. If none
-    shows the target within **250 ms**, the readout shows **"Safari didn't update the
+    `round(mediaTime / d) = k`. The picture is the last presented frame, so the check
+    uses the **latest** callback, from any registration generation. If it shows the
+    target at `seeked`, the picture is right. Otherwise the player waits **250 ms** for
+    a callback that does. If none comes, the readout shows **"Safari didn't update the
     picture: the frame shown may be wrong"** and sets `data-stale="true"`.
+    - Why the latest callback and not "callbacks since `seeking`": Chrome often presents
+      the target, and fires its callback, before the `seeking` event is dispatched. A
+      seek to the frame already shown fires no callback at all. The build's first
+      version cleared its record at `seeking`, and it warned falsely on 17–19 of 41 B.3
+      reads in Chrome.
   - `k` is unaffected. The warning clears at the next callback that shows the target.
     Playback (a `play` event) and a new file also clear it, since the picture is
     replaced then. A new seek replaces the target.
@@ -593,7 +599,8 @@ step it frame by frame.*
   **Stale picture, Safari only** (amended at the build by the user's decision). In the
   Safari run, B.3 and C(b) accept a read whose pixels are wrong if the readout has
   `data-stale="true"` (§2.3, "Stale picture after a paused seek"). Every other read, and
-  every read in the Chrome run, must show the right frame. The Chrome run then repeats A.1–A.4
+  every read in the Chrome run, must show the right frame. In the Chrome run no read may
+  have `data-stale="true"`: a warning there is itself a failure. The Chrome run then repeats A.1–A.4
   against the deployed Pages URL, which proves the deploy serves the working player and
   not just a page.
 - **Manual one-time setup** (not code): install `ffmpeg-full`; enable Pages with source

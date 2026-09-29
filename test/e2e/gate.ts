@@ -148,6 +148,8 @@ const strict = (): Reads => ({ allowStale: false, staleAccepted: 0, staleFlagged
 async function readAt(drv: Driver, k: number, fps: number, reads: Reads, what: string) {
   const r = await drv.run<{ frame: number; stale: boolean }>(`return G.settleRead(${k}, ${fps})`);
   if (r.stale) reads.staleFlagged++;
+  // Chrome keeps the picture current: a stale warning there is itself a failure.
+  check(!(drv.browser === 'chrome' && r.stale), `${what}: Chrome flagged the picture stale at frame ${k}`);
   if (r.frame === k) return r.frame;
   check(reads.allowStale && r.stale, `${what}: pixels read ${r.frame}, expected ${k} (data-stale=${r.stale})`);
   reads.staleAccepted++;
