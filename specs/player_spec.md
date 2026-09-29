@@ -5,12 +5,12 @@ note: >
   What the player is for: the user picks an mp4 file, it plays, and the user can step it one
   frame at a time. Phase 1 is the smallest surface that produces that: a static web page.
 status: accepted
-last_updated: 2026-09-28
+last_updated: 2026-09-29
 
 phases:
   - name: "Phase 1 — Web player with frame-by-frame step"
     reviewed: 2026-09-28
-    shipped: null
+    shipped: 2026-09-29
     cut: null
     by: null
 
