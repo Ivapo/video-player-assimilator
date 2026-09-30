@@ -174,7 +174,7 @@ function logLines(from = 0, to = Infinity): LogLine[] {
   const text = buf.subarray(from, Math.min(to, buf.length)).toString('utf8');
   const rows: LogLine[] = [];
   for (const raw of text.split('\n').filter(Boolean)) {
-    const m = /^(\d+) (\S+) range=(.*?) -> (\d+) cr=(\S+) (\d+)B (\d+)us path=(.*)$/.exec(raw);
+    const m = /^(\d+) (\S+) range=(.*?) -> (\d+) cr=(.+?) (\d+)B (\d+)us path=(.*)$/.exec(raw);
     if (m) rows.push({ ms: +m[1], method: m[2], range: m[3], status: +m[4], cr: m[5], bytes: +m[6], us: +m[7], path: m[8], raw, panic: false });
     else rows.push({ ms: Number(raw.split(' ')[0]), method: '', range: '', status: 0, cr: '', bytes: 0, us: 0, path: '', raw, panic: / PANIC /.test(raw) });
   }
@@ -609,7 +609,9 @@ async function stale() {
 
 // --- H.1–H.2: "Open with" through LaunchServices (the gate build, registered) ---------------
 
-const openWith = (file?: string) => execFileSync('open', ['-a', APP, ...(file ? [file] : [])]);
+function openWith(file?: string) {
+  execFileSync('open', ['-a', APP, ...(file ? [file] : [])]);
+}
 
 /** Play until d snaps, then assert it is exactly 1/fps (as gate.ts does). */
 async function playToSnap(fps: number) {
