@@ -1077,32 +1077,32 @@ Drafted 2026-09-29 from `idea.md` ("Agreed for Phase 2") and two spikes on branc
 - **Predictions** (written 2026-09-29, before any Phase 2 measurement; not to be edited
   after it). The basis is the spikes' measurements on this Mac.
 
-  | step | prediction | basis |
-  |---|---|---|
-  | D.2 CI | 3/3 pass | Spike 1 CI: 3/3 in 237–384 s |
-  | D.3 bundle sizes | `.dmg` 2.8–3.6 MB; `.msi` 2.9–3.8 MB; NSIS 1.9–2.6 MB; `.deb`/`.rpm` 3.0–3.9 MB; AppImage 80–90 MB | Spike 1: 2.79, 2.90, 1.93, 2.98, 2.98 and 81.6 MB, plus two plugins |
-  | E.1 launches | 20/20; first frame median 100–150 ms, max under 250 ms | Spike 2, B: 20/20; median 113 ms (95–195) |
-  | E.2 probe | all as specified; the 403 is new code and has no spike number | Spike 2, B's range table |
-  | E.3 paths | 6/6, frame 10 | Spike 2: 6/6 for both candidates |
-  | E.4 1 GB: first frame | 120–200 ms | Spike 2, B: metadata 102 ms, first frame 143 ms |
-  | E.4 seek → `seeked` | median 10–20 ms, p95 under 40 ms | Spike 2, B: median 13, p95 24, max 46 ms |
-  | E.4 seek → frame shown | median 12–25 ms, p95 under 50 ms; 50/50 | Spike 2, B: median 16, p95 33 ms; 50/50 |
-  | E.4 peak RSS | app 90–120 MB; WebContent about 40 MB | Spike 2, B: app 99, WebContent 40 |
-  | E.5 handler time | median about 50 µs, p99 under 250 µs | Spike 2, B's log: median 54 µs, p99 195 µs |
-  | F: A, B, C(b) | pass in every run that has no stuck seek | Spike 2: 71/72 gate runs over both candidates; the miss was the stuck seek |
-  | F: stuck seeks | **1–4 in 108: I expect it to recur, so F is likely to stop the build** | B's rate in Spike 2 was 1/36: 3.0 expected in 108, P(at least one) = 95%. If it is WebKit's and not the handler's, the rate over both candidates is 1/72: 1.5 expected, P = 78% |
-  | F: stale reads | 0–5 in 108 runs, all flagged; no flag on a right frame | Spike 2: 0 stale in 36 B/C(b) runs; the warning exact in 25/25 across both spikes |
-  | F: C(c) | `batched` 27/27; `d` = 1/120 exactly 27/27; 96–119 callbacks per 2 s clip | Spike 2: `batched` and 1/120 in 18/18; Spike 1: 106–119 (app), 96–118 (Safari) |
-  | G: stale rate | **3–12% per set of 50**: lower than Safari, not zero | Safari, same procedure: 12/96 (Spike 1, corrected); app gates: 0/36 (Spike 2); Phase 1 under safaridriver: 10–12/20, not comparable |
-  | G: warning | exact in 100/100 | 25/25 stale runs warned, 0/219 correct runs |
-  | G: healed by 2 s | none | 0 of 25 healed in Spike 1; none in Phase 1 |
-  | G: `seeked` → target callback, not stale | median 9–11 ms, max about 20 ms | Spike 1: median 9–11, max 19 ms |
-  | H.1 cold "Open with" | 5/5; `open` to the first frame 1.4–1.8 s | Spike 2: 10/10, 1.74–1.83 s to verified playback, including a page reload the real platform does not do |
-  | H.2 running "Open with" | 5/5; under 0.5 s to the first frame | Spike 1: `Opened` reaches the running process; first frame about 113 ms after `src` |
-  | H.3 dialog | works | not measured by the spikes |
-  | H.4 double-click | works, cold and running, after "Change All…" | Spike 1's prediction; not established, because the spike could not make the app the default |
-  | H.5 Gatekeeper | the first open is blocked; "Open Anyway" in System Settings → Privacy & Security gets past it | from memory of macOS 15 and later; not measured |
-  | W | Phase 1's gate passes in both browsers; Safari shows the new wording when stale | only a string, an attribute and the platform choice changed on the web |
+  | step | prediction | basis | measured (2026-09-29, build) |
+  |---|---|---|---|
+  | D.2 CI | 3/3 pass | Spike 1 CI: 3/3 in 237–384 s | Branch push 36636129673, not yet the merge commit: 3/3 pass, 243–390 s. The merge commit's run is pending. |
+  | D.3 bundle sizes | `.dmg` 2.8–3.6 MB; `.msi` 2.9–3.8 MB; NSIS 1.9–2.6 MB; `.deb`/`.rpm` 3.0–3.9 MB; AppImage 80–90 MB | Spike 1: 2.79, 2.90, 1.93, 2.98, 2.98 and 81.6 MB, plus two plugins | Branch CI, not yet the tag's release: `.dmg` 2.89; `.msi` 3.02; NSIS 2.00; `.deb` 4.11 and `.rpm` 4.11 (**miss**, above 3.9; not investigated: the two plugins or newer Linux deps are the likely cause); AppImage 82.6 MB. The six bundles on the `v0.2.0` release are pending. |
+  | E.1 launches | 20/20; first frame median 100–150 ms, max under 250 ms | Spike 2, B: 20/20; median 113 ms (95–195) | 20/20; first frame **median 66 ms** (55–73). **Miss, faster.** Cause not isolated. |
+  | E.2 probe | all as specified; the 403 is new code and has no spike number | Spike 2, B's range table | 12/12 as specified, 403 and 404 included; every status reached the page. |
+  | E.3 paths | 6/6, frame 10 | Spike 2: 6/6 for both candidates | First run 5/6, E.3 then amended (see E.3). Amended: 6/6 under the `'app'` rule: 5 read frame 10, 1 stale and warned. |
+  | E.4 1 GB: first frame | 120–200 ms | Spike 2, B: metadata 102 ms, first frame 143 ms | 75 ms (metadata 42 ms). **Miss, faster.** The file came out at 1 998 549 098 bytes, not Spike 2's 1.09 GB (the same recipe; VideoToolbox's output differs). |
+  | E.4 seek → `seeked` | median 10–20 ms, p95 under 40 ms | Spike 2, B: median 13, p95 24, max 46 ms | **Median 7 ms** (**miss, faster**), p95 10, max 11 ms. |
+  | E.4 seek → frame shown | median 12–25 ms, p95 under 50 ms; 50/50 | Spike 2, B: median 16, p95 33 ms; 50/50 | Median 15, p95 16, max 17 ms; 50/50. |
+  | E.4 peak RSS | app 90–120 MB; WebContent about 40 MB | Spike 2, B: app 99, WebContent 40 | App 100 MB; WebContent 41, GPU 54, Networking 19. |
+  | E.5 handler time | median about 50 µs, p99 under 250 µs | Spike 2, B's log: median 54 µs, p99 195 µs | **Median 12–28 µs** per suite (**miss, faster**). p99 53 µs (launches), 94 (paths), 237 (probe), **816 µs on the 2 GB file** (**miss**: 1 MiB reads of a file twice Spike 2's size). 0 panics. |
+  | F: A, B, C(b) | pass in every run that has no stuck seek | Spike 2: 71/72 gate runs over both candidates; the miss was the stuck seek | **108/108 pass**, A, B, C(b) and C(c) in every repetition. |
+  | F: stuck seeks | **1–4 in 108: I expect it to recur, so F is likely to stop the build** | B's rate in Spike 2 was 1/36: 3.0 expected in 108, P(at least one) = 95%. If it is WebKit's and not the handler's, the rate over both candidates is 1/72: 1.5 expected, P = 78% | **0 in 108.** **Miss: I expected 1–4.** Also 0 in every other suite (E, G, H: about 170 more loads). OQ-8's cause stays unknown; a clean F bounds its rate below 1/36 at 95%. |
+  | F: stale reads | 0–5 in 108 runs, all flagged; no flag on a right frame | Spike 2: 0 stale in 36 B/C(b) runs; the warning exact in 25/25 across both spikes | **7 in 2 781 reads** (5 in A, 2 in B), all flagged with the §2.11 wording; 0 flags on a right frame. **Miss**: above 0–5, and it confirms A.3's long seek goes stale in the app. |
+  | F: C(c) | `batched` 27/27; `d` = 1/120 exactly 27/27; 96–119 callbacks per 2 s clip | Spike 2: `batched` and 1/120 in 18/18; Spike 1: 106–119 (app), 96–118 (Safari) | `batched` 27/27; 104–121 callbacks per clip (**miss** by 2 above 119). `d` = 1/120 exactly in **25/27**; **1/65 in 2/27** (**miss**). Cause: in those 2 runs (104 and 107 callbacks) no early gap was a single frame, so 3-frame gaps rounded to 2 units, and 24 frames over N = 13 is exactly 1/65. The batched counter skips the cross-check: OQ-2's known limitation. |
+  | G: stale rate | **3–12% per set of 50**: lower than Safari, not zero | Safari, same procedure: 12/96 (Spike 1, corrected); app gates: 0/36 (Spike 2); Phase 1 under safaridriver: 10–12/20, not comparable | **0/50 and 0/50.** **Miss: I expected 3–12%.** The app's picture after the C(b) seek was right in all 100 runs, against Safari's 12/96 under Spike 1's harness. F still saw 7 stale reads, in A.3 and B. |
+  | G: warning | exact in 100/100 | 25/25 stale runs warned, 0/219 correct runs | Exact in 100/100: 0 false warnings, 0 stale runs. |
+  | G: healed by 2 s | none | 0 of 25 healed in Spike 1; none in Phase 1 | Nothing to heal: no stale run. |
+  | G: `seeked` → target callback, not stale | median 9–11 ms, max about 20 ms | Spike 1: median 9–11, max 19 ms | Median 9 ms, max 18 ms, both sets. |
+  | H.1 cold "Open with" | 5/5; `open` to the first frame 1.4–1.8 s | Spike 2: 10/10, 1.74–1.83 s to verified playback, including a page reload the real platform does not do | 5/5; `open` to first frame **410–575 ms** (median 413). **Miss, faster**: the basis included the spike's 300 ms poll and a page reload, which the real platform does not do. |
+  | H.2 running "Open with" | 5/5; under 0.5 s to the first frame | Spike 1: `Opened` reaches the running process; first frame about 113 ms after `src` | 5/5: same pid, one process, readout reset, `d` = 1/60 exactly; 97–120 ms to the first frame. |
+  | H.3 dialog | works | not measured by the spikes | Works (by hand, the user): the system dialog, mp4 only; `frames.mp4` stepped. `frames60ms.mp4` stepped once it had played long enough to snap. |
+  | H.4 double-click | works, cold and running, after "Change All…" | Spike 1's prediction; not established, because the spike could not make the app the default | Works, cold and running, after "Change All…" (by hand, the user). Default restored to OmniPlayerStore. |
+  | H.5 Gatekeeper | the first open is blocked; "Open Anyway" in System Settings → Privacy & Security gets past it | from memory of macOS 15 and later; not measured | Pending: needs the `v0.2.0` release. |
+  | W | Phase 1's gate passes in both browsers; Safari shows the new wording when stale | only a string, an attribute and the platform choice changed on the web | Chrome run 1: A passed; **B.2 failed**, `d` not snapped after 3 s: the counter stayed `unknown` over 175 gaps (N = 178), so nothing could snap. Cause not found; this run started as the user was asked to leave the Mac. Diagnostic re-run: Chrome 4/4 (counter per-frame, snap at 2.25 s, no stale flag, C(c) refused), Safari 4/4 (no stale reads, so the wording was not exercised there). Pages check pending. |
 
 - **Manual one-time setup** (not code): install the Rust toolchain and
   `@tauri-apps/cli` (Command Line Tools suffice; no full Xcode, Spike 1); `ffmpeg-full`

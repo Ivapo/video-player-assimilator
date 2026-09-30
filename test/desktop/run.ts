@@ -5,7 +5,7 @@
 //
 // Suites: launches [20] (E.1) · probe (E.2) · paths (E.3) · big [50] (E.4) · log (E.5)
 //         gates [27] (F) · stale [50] (G) · openwith-cold [5] (H.1) · openwith-running [5] (H.2)
-// Results: test-results/desktop-<suite>.json. The app window must stay visible.
+// Results: test-results-desktop/desktop-<suite>.json. The app window must stay visible.
 // A stuck seek (no `seeked` 15 s after `seeking`) aborts any suite, with its stream.log lines.
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -21,15 +21,15 @@ const APP = resolve(ROOT, 'src-tauri/target-gate/release/bundle/macos/Video Play
 const BIN = join(APP, 'Contents/MacOS/video-player-assimilator');
 const LOG = join(homedir(), 'Library/Logs/com.ivapo.video-player-assimilator/stream.log');
 const BIG = process.env.BIG_FIXTURE ?? join(homedir(), 'Movies/vpa-big.mp4');
-const WORK = resolve(ROOT, 'test-results/desktop-work');
+const WORK = resolve(ROOT, 'test-results-desktop/desktop-work');
 const PORT = 5181;
 const FIX = (f: string) => resolve(ROOT, 'test/fixtures', f);
 
 const [suite, nArg] = process.argv.slice(2);
 const out: Record<string, unknown> = { suite, startedAt: new Date().toISOString() };
 const save = () => {
-  mkdirSync(resolve(ROOT, 'test-results'), { recursive: true });
-  writeFileSync(resolve(ROOT, `test-results/desktop-${suite}.json`), JSON.stringify(out, null, 1));
+  mkdirSync(resolve(ROOT, 'test-results-desktop'), { recursive: true });
+  writeFileSync(resolve(ROOT, `test-results-desktop/desktop-${suite}.json`), JSON.stringify(out, null, 1));
 };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const withTimeout = <T,>(p: Promise<T>, ms: number, what: string) =>
@@ -48,8 +48,8 @@ channel.onStuck = (report: any) => {
   const lines = logLines().filter((l) => l.ms >= report.start - 1000 && l.ms <= report.start + 17000).map((l) => l.raw);
   const stuck = { report, streamLog: lines };
   out.stuck = stuck;
-  const file = resolve(ROOT, `test-results/desktop-stuck-${Date.now()}.json`);
-  mkdirSync(resolve(ROOT, 'test-results'), { recursive: true });
+  const file = resolve(ROOT, `test-results-desktop/desktop-stuck-${Date.now()}.json`);
+  mkdirSync(resolve(ROOT, 'test-results-desktop'), { recursive: true });
   writeFileSync(file, JSON.stringify(stuck, null, 1));
   abort(3, `STUCK SEEK (OQ-8): ${JSON.stringify(report)}\n${lines.length} stream.log lines, in ${file}:\n${lines.join('\n')}`);
 };
@@ -452,7 +452,7 @@ async function big() {
 
 /** E.5: stream.log over the E.1–E.4 runs (read from their result files). */
 async function logCheck() {
-  const res = (s: string) => JSON.parse(readFileSync(resolve(ROOT, `test-results/desktop-${s}.json`), 'utf8'));
+  const res = (s: string) => JSON.parse(readFileSync(resolve(ROOT, `test-results-desktop/desktop-${s}.json`), 'utf8'));
   const parts = ['launches', 'probe', 'paths', 'big'].map((s) => ({ s, r: res(s) }));
   const rows: any = {};
   let ok = true;

@@ -2,5 +2,7 @@
 
 # Rules
 
-- **[player](player.md)** — generated 2026-09-29 · 9 sources · 63/90 lines
+- **[desktop](desktop.md)** — generated 2026-09-29 · 12 sources · 60/80 lines
+  The desktop app as built: the Tauri shell and its two builds, the stream: scheme, file open (dialog, "Open with", the buffer), CI and releases, and the desktop gate harness
+- **[player](player.md)** — generated 2026-09-29 · 10 sources · 73/90 lines
   The web player as built: stack, platform layer, frame-duration estimate, step, stale-picture detection, fixtures, the gate, the deploy, and what each browser does
