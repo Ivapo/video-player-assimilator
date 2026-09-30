@@ -16,7 +16,7 @@ phases:
     by: null
   - name: "Phase 2 — Desktop app"
     reviewed: 2026-09-29
-    shipped: null
+    shipped: 2026-09-29
     cut: null
     by: null
 
@@ -1062,6 +1062,9 @@ Drafted 2026-09-29 from `idea.md` ("Agreed for Phase 2") and two spikes on branc
      rather than offering "Open Anyway", the README's steps include
      `xattr -dr com.apple.quarantine` on the app (review round 1, R1-N10). Recorded:
      which of the two macOS showed.
+     - **WAIVED 2026-09-29 after the merge, by the user's decision:** not run. Distribution
+       is not the user's concern at this stage; whether the player is useful is. The README's
+       Gatekeeper steps stay unverified on a downloaded build.
 
   **W. The web build still works.** `src/`, `index.html` and `gate.ts` changed, so Phase
   1's gate runs once in Chrome and in Safari (§2.6), with its steps unchanged and Phase
@@ -1079,8 +1082,8 @@ Drafted 2026-09-29 from `idea.md` ("Agreed for Phase 2") and two spikes on branc
 
   | step | prediction | basis | measured (2026-09-29, build; logs in `specs/reviews/evidence/vpa-001-p2/`) |
   |---|---|---|---|
-  | D.2 CI | 3/3 pass | Spike 1 CI: 3/3 in 237–384 s | Branch push 36636129673, not yet the merge commit: 3/3 pass, 243–390 s. The merge commit's run is pending. |
-  | D.3 bundle sizes | `.dmg` 2.8–3.6 MB; `.msi` 2.9–3.8 MB; NSIS 1.9–2.6 MB; `.deb`/`.rpm` 3.0–3.9 MB; AppImage 80–90 MB | Spike 1: 2.79, 2.90, 1.93, 2.98, 2.98 and 81.6 MB, plus two plugins | Branch CI, not yet the tag's release: `.dmg` 2.89; `.msi` 3.02; NSIS 2.00; `.deb` 4.11 and `.rpm` 4.11 (**miss**, above 3.9; not investigated: the two plugins or newer Linux deps are the likely cause); AppImage 82.6 MB. The six bundles on the `v0.2.0` release are pending. |
+  | D.2 CI | 3/3 pass | Spike 1 CI: 3/3 in 237–384 s | Branch push 36636129673: 3/3 pass, 243–390 s. **Merge commit `4106c3f`, run 36665462649: 3/3 pass**, macOS 206 s, Ubuntu 335 s, Windows 416 s. |
+  | D.3 bundle sizes | `.dmg` 2.8–3.6 MB; `.msi` 2.9–3.8 MB; NSIS 1.9–2.6 MB; `.deb`/`.rpm` 3.0–3.9 MB; AppImage 80–90 MB | Spike 1: 2.79, 2.90, 1.93, 2.98, 2.98 and 81.6 MB, plus two plugins | Branch CI, not yet the tag's release: `.dmg` 2.89; `.msi` 3.02; NSIS 2.00; `.deb` 4.11 and `.rpm` 4.11 (**miss**, above 3.9; not investigated: the two plugins or newer Linux deps are the likely cause); AppImage 82.6 MB. **`v0.2.0` release (run 36666013242): all six**, in bytes: `.dmg` 2 888 159; `.msi` 3 018 752; NSIS 2 000 557; `.deb` 4 111 574; `.rpm` 4 113 798; AppImage 82 614 776. The macOS job built the `.dmg` but its upload step failed (`mapfile: command not found`: the macOS runner's bash is 3.2), so the `.dmg` was attached by hand from that run's artifact, byte-identical to the size the job logged. |
   | E.1 launches | 20/20; first frame median 100–150 ms, max under 250 ms | Spike 2, B: 20/20; median 113 ms (95–195) | 20/20; first frame **median 66 ms** (55–73). **Miss, faster.** Cause not isolated. |
   | E.2 probe | all as specified; the 403 is new code and has no spike number | Spike 2, B's range table | 12/12 as specified, 403 and 404 included; every status reached the page. |
   | E.3 paths | 6/6, frame 10 | Spike 2: 6/6 for both candidates | First run 5/6, E.3 then amended (see E.3). Amended: 6/6 under the `'app'` rule: 5 read frame 10, 1 stale and warned. |
@@ -1101,8 +1104,8 @@ Drafted 2026-09-29 from `idea.md` ("Agreed for Phase 2") and two spikes on branc
   | H.2 running "Open with" | 5/5; under 0.5 s to the first frame | Spike 1: `Opened` reaches the running process; first frame about 113 ms after `src` | 5/5: same pid, one process, readout reset, `d` = 1/60 exactly; 97–120 ms to the first frame. |
   | H.3 dialog | works | not measured by the spikes | Works (by hand, the user): the system dialog, mp4 only; `frames.mp4` stepped. `frames60ms.mp4` stepped once it had played long enough to snap. |
   | H.4 double-click | works, cold and running, after "Change All…" | Spike 1's prediction; not established, because the spike could not make the app the default | Works, cold and running, after "Change All…" (by hand, the user). Default restored to OmniPlayerStore. |
-  | H.5 Gatekeeper | the first open is blocked; "Open Anyway" in System Settings → Privacy & Security gets past it | from memory of macOS 15 and later; not measured | Pending: needs the `v0.2.0` release. |
-  | W | Phase 1's gate passes in both browsers; Safari shows the new wording when stale | only a string, an attribute and the platform choice changed on the web | Chrome run 1: A passed; **B.2 failed**, `d` not snapped after 3 s: the counter stayed `unknown` over 175 gaps (N = 178), so nothing could snap. Cause not found; this run started as the user was asked to leave the Mac. Diagnostic re-run: Chrome 4/4 (counter per-frame, snap at 2.25 s, no stale flag, C(c) refused), Safari 4/4 (no stale reads, so the wording was not exercised there). **Then 10 more Chrome runs, the Mac left alone: 10/10 pass**; counter per-frame in every run, B snapped at 2 233–2 255 ms (N = 134), no stale flag, C(c) refused. B.2's failure did not recur in 11 runs after it; its cause is still not found. Pages check pending. |
+  | H.5 Gatekeeper | the first open is blocked; "Open Anyway" in System Settings → Privacy & Security gets past it | from memory of macOS 15 and later; not measured | **Not run: waived by the user's decision** (see H.5). |
+  | W | Phase 1's gate passes in both browsers; Safari shows the new wording when stale | only a string, an attribute and the platform choice changed on the web | Chrome run 1: A passed; **B.2 failed**, `d` not snapped after 3 s: the counter stayed `unknown` over 175 gaps (N = 178), so nothing could snap. Cause not found; this run started as the user was asked to leave the Mac. Diagnostic re-run: Chrome 4/4 (counter per-frame, snap at 2.25 s, no stale flag, C(c) refused), Safari 4/4 (no stale reads, so the wording was not exercised there). **Then 10 more Chrome runs, the Mac left alone: 10/10 pass**; counter per-frame in every run, B snapped at 2 233–2 255 ms (N = 134), no stale flag, C(c) refused. B.2's failure did not recur in 11 runs after it; its cause is still not found. **Pages check, after the merge: A passes** in Chrome against the live URL (snap at 383 ms, counter per-frame); the site serves the merge commit's asset hashes. |
 
 - **Manual one-time setup** (not code): install the Rust toolchain and
   `@tauri-apps/cli` (Command Line Tools suffice; no full Xcode, Spike 1); `ffmpeg-full`
