@@ -366,6 +366,12 @@ Frames are numbered from 0: with frame duration `d`, frame `k` covers
   - `k` is unaffected. The warning clears at the next callback that shows the target.
     Playback (a `play` event) and a new file also clear it, since the picture is
     replaced then. A new seek replaces the target.
+  - **Before `d` is known** (known limitation, recorded 2026-09-29 at the Phase 2 build,
+    by the user's decision; not fixed in Phase 2). Detection needs `d`: the target is the
+    `k` the `seeked` handler sets, and it sets no `k` while `d` is unknown. So a stale
+    picture after a seek made before `d` is known — a scrub or a script seek before any
+    playback — cannot be warned. The picture can then be wrong with no warning. Seen in
+    the app at the Phase 2 build (E.3, first run: 1 of 6 seeks). Future work under OQ-2.
   - A check of the same form in the build's diagnostic (250 ms, a callback showing the
     target) was measured against the pixels. In two soaks of 20 runs it fired in exactly
     the stale runs, 5 and 7, and in no correct one.
@@ -733,7 +739,10 @@ drives the **production app** through an in-page agent, as Spike 2 did:
   callbacks. **Known limitation** (build, amended R7-B1): in a browser whose
   `totalVideoFrames` counter is batched (Safari 26.6.2 today), the cross-check is skipped,
   so a file faster than the display rate can snap to the wrong rate, for example 120 fps
-  content presented at 60 snapping to 60.
+  content presented at 60 snapping to 60. **Known limitation** (Phase 2 build,
+  2026-09-29, by the user's decision; not fixed in Phase 2): in WebKit (Safari and the
+  macOS app), a stale picture after a seek made **before `d` is known** cannot be warned,
+  because detection needs `d` to name the target frame (§2.3, "Before `d` is known").
 - **OQ-3** — The Assimilator brand name and look for this player. *(needs-input)*
 - **OQ-4** — Which extra feature comes after frame step: loop a section, speed control,
   or overlays? *(needs-input)*
@@ -968,8 +977,18 @@ Drafted 2026-09-29 from `idea.md` ("Agreed for Phase 2") and two spikes on branc
      status rather than "Load failed".
   3. **Paths:** the six names of Spike 2 (spaces; `&`; NFC and NFD accents;
      Cyrillic, CJK and emoji; `%20#?`; a 250-byte name), all in a directory whose name
-     has spaces and Unicode. Each loads, and after a seek to `10.5/30` the pixels read
-     frame 10.
+     has spaces and Unicode. ~~Each loads, and after a seek to `10.5/30` the pixels read
+     frame 10.~~
+     - **AMENDED 2026-09-29 at the build, by the user's decision:** each loads, plays
+       until `d` snaps, pauses, seeks to `10.5/30`, and is read under F's `'app'` rule:
+       the pixels read frame 10, or the picture is flagged stale with the §2.11 wording
+       (and a flag on a right frame fails).
+     - *Cause:* in the first gate run, 5 of 6 names read frame 10. The sixth, the NFC/NFD
+       name, read frame 0: all six files were served identically (88 requests each, all
+       206), and no frame callback for frame 10 came within 1 s of `seeked`. That is
+       WebKit's stale picture after a long paused seek (§2.3). As first written, E.3
+       never played, so `d` was unknown, and the player could not warn: the read could
+       only pass or fail on the stale picture's chance. See §2.3, "Before `d` is known".
   4. **The 1 GB file:** loads, and 50 random paused seeks each present a frame within
      2 s (50/50). The app process's peak RSS stays under 300 MB, which shows that the
      handler does not hold the file. Recorded: first frame; seek to `seeked`; seek to

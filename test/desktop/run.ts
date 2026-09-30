@@ -331,7 +331,7 @@ async function probe() {
   check(rows.every((r) => r.pass), 'E.2: a probe failed');
 }
 
-/** E.3: six awkward names in a directory named with spaces and Unicode. */
+/** E.3 (amended at the build): six awkward names in a directory named with spaces and Unicode. */
 async function paths() {
   const dir = join(WORK, 'dir with spaces & ünïcødé 視頻');
   rmSync(dir, { recursive: true, force: true });
@@ -353,20 +353,22 @@ async function paths() {
     const path = join(dir, name);
     try {
       await load(path);
-      // d is not known (nothing played), so the player has no k: wait for a frame callback
-      // showing frame 10, up to 1 s, then read the pixels.
-      const r = await run<{ frame: number }>(`await G.seek(10.5 / 30);
-        const t0 = performance.now();
-        while (!(G.presented !== null && Math.round(G.presented * 30) === 10) && performance.now() - t0 < 1000) await G.sleep(2);
-        return { frame: G.readFrame() };`);
-      rows.push({ name, nameBytes: Buffer.byteLength(name), pathBytes: Buffer.byteLength(path), ok: r.frame === 10, frame: r.frame });
+      // E.3 as amended at the build: play until d snaps, pause, seek, and read under the
+      // app's rule, so that a stale picture is warned (before d is known it cannot be).
+      await drv.key(' ');
+      await run(`await G.waitFor(() => G.data().dSnapped === 'true' || G.data().ended, 'snap', 5000)`);
+      await drv.key(' ');
+      await run(`await G.waitFor(() => G.data().paused && G.data().pending === 'false', 'pause and snap')`);
+      const r = await run<{ frame: number; stale: boolean; text: string }>(`await G.seek(10.5 / 30); return G.settleRead(10, 30);`);
+      const ruleOk = r.frame === 10 ? !r.stale : r.stale && r.text.includes(STALE_WORDING);
+      rows.push({ name, nameBytes: Buffer.byteLength(name), pathBytes: Buffer.byteLength(path), ok: ruleOk, frame: r.frame, stale: r.stale });
     } catch (e) {
       rows.push({ name, ok: false, error: String((e as Error).message).slice(0, 300) });
     }
     const r = rows.at(-1);
     console.log(r.ok ? 'OK  ' : 'FAIL', r.nameBytes, JSON.stringify(name).slice(0, 50), r.frame ?? r.error);
   }
-  out.summary = { paths: names.length, ok: rows.filter((r) => r.ok).length };
+  out.summary = { paths: names.length, ok: rows.filter((r) => r.ok).length, frame10: rows.filter((r) => r.frame === 10).length, staleWarned: rows.filter((r) => r.ok && r.stale).length };
   console.log('SUMMARY', JSON.stringify(out.summary));
   check(rows.every((r) => r.ok), 'E.3: a path failed');
 }
