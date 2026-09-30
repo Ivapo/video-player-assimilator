@@ -64,7 +64,7 @@ generated: 2026-09-29
 
 ## CI and releases — `.github/workflows/desktop.yml`
 - `tauri build` on macos-latest (arm64), windows-latest and ubuntu-latest, on push to `main`
-  and to `spec/vpa-001-p2`. On a `v*` tag: `gh release create`, then each build attaches its
+  (and `workflow_dispatch`). On a `v*` tag: `gh release create`, then each build attaches its
   bundles unsigned: `.dmg`, `.msi`, NSIS `.exe`, `.deb`, `.rpm`, AppImage.
 - Only macOS is tested. Windows and Linux are "unverified" (OQ-6, OQ-7).
 

@@ -1,0 +1,12 @@
+=== E1 21:03:41
+SUMMARY {"launches":20,"ok":20,"firstFrameMs":{"n":20,"min":55,"median":66,"p95":73,"p99":73,"max":73}}
+=== E1 exit 0 21:04:01
+=== E2 21:04:01
+SUMMARY {"probes":12,"pass":12}
+=== E2 exit 0 21:04:02
+=== E3 21:04:02
+FAIL 19 "é NFD, é NFC.mp4" 0
+SUMMARY {"paths":6,"ok":5}
+FAIL [desktop] E.3: a path failed
+=== E3 exit 1 21:04:05
+BLOCK STOPPED at E3

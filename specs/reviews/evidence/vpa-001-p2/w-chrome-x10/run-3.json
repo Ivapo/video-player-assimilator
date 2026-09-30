@@ -1,0 +1,63 @@
+{
+  "A": {
+    "snap": {
+      "ms": 383.1000000014901,
+      "n": 10,
+      "deltaT": 10,
+      "gaps": 10,
+      "runs": 1,
+      "quantum": 0.000001,
+      "mediaTime": 0.4,
+      "counter": "per-frame"
+    }
+  },
+  "B": {
+    "at1s": {
+      "n": 59,
+      "status": "measuring"
+    },
+    "snap": {
+      "ms": 2232.5999999940395,
+      "n": 134,
+      "deltaT": 135,
+      "gaps": 134,
+      "runs": 1,
+      "quantum": 0.001,
+      "mediaTime": 2.267,
+      "counter": "per-frame"
+    },
+    "b3": {
+      "staleAccepted": 0,
+      "staleFlagged": 0
+    }
+  },
+  "Cb": {
+    "snap": {
+      "ms": 4497.79999999702,
+      "n": 267,
+      "deltaT": 268,
+      "gaps": 263,
+      "runs": 2,
+      "quantum": 0.001,
+      "mediaTime": 4.017,
+      "counter": "per-frame"
+    },
+    "reads": {
+      "staleAccepted": 0,
+      "staleFlagged": 0
+    }
+  },
+  "Cc": {
+    "outcome": "not-supported",
+    "asserted": true,
+    "hz": 59.88023952095813,
+    "counter": "per-frame",
+    "status": "unsupported",
+    "dMs": "",
+    "n": 10,
+    "deltaT": 26,
+    "runs": 1,
+    "gaps": 10,
+    "quantum": 0.000001
+  }
+}

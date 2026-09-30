@@ -3,14 +3,11 @@
 # attaches its bundles to it, unsigned: .dmg; .msi and NSIS .exe; .deb, .rpm and AppImage.
 # No signing or notarization. Only the macOS build is tested (the gate runs locally); the
 # Windows and Linux builds are built, not run, and marked "unverified".
-#
-# Also on pushes to spec/vpa-001-p2: a build-only check before the merge (the user's
-# decision at the Phase 2 build, 2026-09-29).
 name: Desktop
 
 on:
   push:
-    branches: [main, spec/vpa-001-p2]
+    branches: [main]
     tags: ['v*']
   workflow_dispatch:
 
@@ -42,7 +39,7 @@ jobs:
 
   build:
     needs: release
-    # On a branch push the release job is skipped; build anyway.
+    # On a push to main the release job is skipped; build anyway.
     if: ${{ !cancelled() && (needs.release.result == 'success' || needs.release.result == 'skipped') }}
     strategy:
       fail-fast: false

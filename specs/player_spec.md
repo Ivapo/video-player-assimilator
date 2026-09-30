@@ -1077,7 +1077,7 @@ Drafted 2026-09-29 from `idea.md` ("Agreed for Phase 2") and two spikes on branc
 - **Predictions** (written 2026-09-29, before any Phase 2 measurement; not to be edited
   after it). The basis is the spikes' measurements on this Mac.
 
-  | step | prediction | basis | measured (2026-09-29, build) |
+  | step | prediction | basis | measured (2026-09-29, build; logs in `specs/reviews/evidence/vpa-001-p2/`) |
   |---|---|---|---|
   | D.2 CI | 3/3 pass | Spike 1 CI: 3/3 in 237–384 s | Branch push 36636129673, not yet the merge commit: 3/3 pass, 243–390 s. The merge commit's run is pending. |
   | D.3 bundle sizes | `.dmg` 2.8–3.6 MB; `.msi` 2.9–3.8 MB; NSIS 1.9–2.6 MB; `.deb`/`.rpm` 3.0–3.9 MB; AppImage 80–90 MB | Spike 1: 2.79, 2.90, 1.93, 2.98, 2.98 and 81.6 MB, plus two plugins | Branch CI, not yet the tag's release: `.dmg` 2.89; `.msi` 3.02; NSIS 2.00; `.deb` 4.11 and `.rpm` 4.11 (**miss**, above 3.9; not investigated: the two plugins or newer Linux deps are the likely cause); AppImage 82.6 MB. The six bundles on the `v0.2.0` release are pending. |
@@ -1102,7 +1102,7 @@ Drafted 2026-09-29 from `idea.md` ("Agreed for Phase 2") and two spikes on branc
   | H.3 dialog | works | not measured by the spikes | Works (by hand, the user): the system dialog, mp4 only; `frames.mp4` stepped. `frames60ms.mp4` stepped once it had played long enough to snap. |
   | H.4 double-click | works, cold and running, after "Change All…" | Spike 1's prediction; not established, because the spike could not make the app the default | Works, cold and running, after "Change All…" (by hand, the user). Default restored to OmniPlayerStore. |
   | H.5 Gatekeeper | the first open is blocked; "Open Anyway" in System Settings → Privacy & Security gets past it | from memory of macOS 15 and later; not measured | Pending: needs the `v0.2.0` release. |
-  | W | Phase 1's gate passes in both browsers; Safari shows the new wording when stale | only a string, an attribute and the platform choice changed on the web | Chrome run 1: A passed; **B.2 failed**, `d` not snapped after 3 s: the counter stayed `unknown` over 175 gaps (N = 178), so nothing could snap. Cause not found; this run started as the user was asked to leave the Mac. Diagnostic re-run: Chrome 4/4 (counter per-frame, snap at 2.25 s, no stale flag, C(c) refused), Safari 4/4 (no stale reads, so the wording was not exercised there). Pages check pending. |
+  | W | Phase 1's gate passes in both browsers; Safari shows the new wording when stale | only a string, an attribute and the platform choice changed on the web | Chrome run 1: A passed; **B.2 failed**, `d` not snapped after 3 s: the counter stayed `unknown` over 175 gaps (N = 178), so nothing could snap. Cause not found; this run started as the user was asked to leave the Mac. Diagnostic re-run: Chrome 4/4 (counter per-frame, snap at 2.25 s, no stale flag, C(c) refused), Safari 4/4 (no stale reads, so the wording was not exercised there). **Then 10 more Chrome runs, the Mac left alone: 10/10 pass**; counter per-frame in every run, B snapped at 2 233–2 255 ms (N = 134), no stale flag, C(c) refused. B.2's failure did not recur in 11 runs after it; its cause is still not found. Pages check pending. |
 
 - **Manual one-time setup** (not code): install the Rust toolchain and
   `@tauri-apps/cli` (Command Line Tools suffice; no full Xcode, Spike 1); `ffmpeg-full`

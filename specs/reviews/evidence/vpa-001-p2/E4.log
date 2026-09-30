@@ -1,0 +1,4 @@
+load {"bytes":1998549098,"metadataMs":42,"firstFrameMs":75}
+seeks {"seeked":{"n":50,"min":4,"median":7,"p95":10,"p99":11,"max":11},"frameShown":{"n":50,"min":13,"median":15,"p95":16,"p99":17,"max":17},"shownWithin2s":50}
+peak RSS MB {"video-player-assimilator:45338":100,"GPU:45339":54,"Networking:45340":19,"WebContent:45341":41}
+SUMMARY {"shownWithin2s":50,"of":50,"appPeakRssMB":100}

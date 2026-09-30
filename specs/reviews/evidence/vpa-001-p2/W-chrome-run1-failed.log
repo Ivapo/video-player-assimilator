@@ -1,0 +1,40 @@
+
+> video-player-assimilator@0.2.0 test:chrome
+> playwright test
+
+
+Running 4 tests using 1 worker
+
+  ✓  1 test/e2e/chrome.spec.ts:26:1 › A — frames.mp4 (9.2s)
+gate-chrome {"A":{"snap":{"ms":365.6000000014901,"n":10,"deltaT":10,"gaps":10,"runs":1,"quantum":0.000001,"mediaTime":0.4,"counter":"per-frame"}}}
+  ✘  2 test/e2e/chrome.spec.ts:27:1 › B — frames60ms.mp4 (3.2s)
+  -  3 test/e2e/chrome.spec.ts:28:1 › C(b) — seek bar before d is known
+  -  4 test/e2e/chrome.spec.ts:29:1 › C(c) — 120 fps on this display
+
+
+  1) test/e2e/chrome.spec.ts:27:1 › B — frames60ms.mp4 ─────────────────────────────────────────────
+
+    Error: [gate] B.2: d not snapped ({"frame":"0","mediaTime":"3.017","dMs":"","dSnapped":"false","pending":"false","stale":"false","status":"measuring","n":"178","gaps":"175","runs":"1","deltaT":"179","quantum":"0.001","counter":"unknown","dMin":"0.01599999999999996","text":"frame 0  ·  media time 3.017000 s  ·  d –  ·  measuring frame rate…","stepDisabled":true,"currentTime":3.006286,"paused":false,"ended":false,"duration":4.999})
+
+       at gate.ts:103
+
+      101 |
+      102 | function check(cond: unknown, msg: string): asserts cond {
+    > 103 |   if (!cond) throw new Error(`[gate] ${msg}`);
+          |                    ^
+      104 | }
+      105 |
+      106 | type Data = Record<string, string | number | boolean> & {
+        at check (/Users/ivapo/dev/main/video-player-assimilator/test/e2e/gate.ts:103:20)
+        at assertSnapped (/Users/ivapo/dev/main/video-player-assimilator/test/e2e/gate.ts:125:3)
+        at gateB (/Users/ivapo/dev/main/video-player-assimilator/test/e2e/gate.ts:238:3)
+        at /Users/ivapo/dev/main/video-player-assimilator/test/e2e/chrome.spec.ts:27:61
+
+    Error Context: test-results/chrome-B-—-frames60ms-mp4/error-context.md
+
+    Error Context: test-results/chrome-B-—-frames60ms-mp4/error-context.md
+
+  1 failed
+    test/e2e/chrome.spec.ts:27:1 › B — frames60ms.mp4 ──────────────────────────────────────────────
+  2 did not run
+  1 passed (19.1s)

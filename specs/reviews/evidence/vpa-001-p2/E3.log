@@ -1,0 +1,7 @@
+OK   14 "a b  c (1).mp4" 10
+OK   15 "this & that.mp4" 10
+OK   19 "é NFD, é NFC.mp4" 10
+OK   29 "видео 日本語 😀.mp4" 10
+OK   21 "percent%20hash#q?.mp4" 11
+OK   250 "LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL 10
+SUMMARY {"paths":6,"ok":6,"frame10":5,"staleWarned":1}

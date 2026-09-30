@@ -1,0 +1,109 @@
+0 A PASS {"reads":15,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":437,"n":10,"deltaT":0,"gaps":10,"runs":1,"quantum":0.000001,"mediaTime":0.4,"counter":"batched"}}
+0 B PASS {"reads":84,"staleFlagged":0,"staleWrong":0} {"at1s":{"n":57,"status":"measuring"},"snap":{"ms":2310.0000000000005,"n":134,"deltaT":135,"gaps":131,"runs":1,"quantum":0.001,"mediaTime":2
+0 Cb PASS {"reads":4,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":4574,"n":267,"deltaT":214,"gaps":258,"runs":2,"quantum":0.001,"mediaTime":4,"counter":"batched"},"reads":{"staleAccepted":0,"s
+0 Cc PASS {"reads":0,"staleFlagged":0,"staleWrong":0} {"outcome":"snapped d_ms=8.333333333333334","asserted":false,"hz":58.8235294117647,"counter":"batched","status":"snapped","dMs":"8.333333333
+1 A PASS {"reads":15,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":437,"n":10,"deltaT":0,"gaps":10,"runs":1,"quantum":0.000001,"mediaTime":0.4,"counter":"batched"}}
+1 B PASS {"reads":84,"staleFlagged":0,"staleWrong":0} {"at1s":{"n":57,"status":"measuring"},"snap":{"ms":2312,"n":134,"deltaT":111,"gaps":131,"runs":1,"quantum":0.001,"mediaTime":2.267,"counter"
+1 Cb PASS {"reads":4,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":4575,"n":267,"deltaT":215,"gaps":257,"runs":2,"quantum":0.001,"mediaTime":4,"counter":"batched"},"reads":{"staleAccepted":0,"s
+1 Cc PASS {"reads":0,"staleFlagged":0,"staleWrong":0} {"outcome":"snapped d_ms=8.333333333333334","asserted":false,"hz":58.8235294117647,"counter":"batched","status":"snapped","dMs":"8.333333333
+2 A PASS {"reads":15,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":432,"n":10,"deltaT":0,"gaps":10,"runs":1,"quantum":0.000001,"mediaTime":0.4,"counter":"batched"}}
+2 B PASS {"reads":84,"staleFlagged":0,"staleWrong":0} {"at1s":{"n":57,"status":"measuring"},"snap":{"ms":2312,"n":134,"deltaT":108,"gaps":133,"runs":1,"quantum":0.001,"mediaTime":2.267,"counter"
+2 Cb PASS {"reads":4,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":4572,"n":267,"deltaT":215,"gaps":263,"runs":2,"quantum":0.001,"mediaTime":4,"counter":"batched"},"reads":{"staleAccepted":0,"s
+2 Cc PASS {"reads":0,"staleFlagged":0,"staleWrong":0} {"outcome":"snapped d_ms=8.333333333333334","asserted":false,"hz":58.8235294117647,"counter":"batched","status":"snapped","dMs":"8.333333333
+3 A PASS {"reads":15,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":432,"n":10,"deltaT":0,"gaps":10,"runs":1,"quantum":0.000001,"mediaTime":0.4,"counter":"batched"}}
+3 B PASS {"reads":84,"staleFlagged":0,"staleWrong":0} {"at1s":{"n":57,"status":"measuring"},"snap":{"ms":2313,"n":134,"deltaT":109,"gaps":130,"runs":1,"quantum":0.001,"mediaTime":2.267,"counter"
+3 Cb PASS {"reads":4,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":4588,"n":267,"deltaT":213,"gaps":261,"runs":2,"quantum":0.001,"mediaTime":4.017,"counter":"batched"},"reads":{"staleAccepted":
+3 Cc PASS {"reads":0,"staleFlagged":0,"staleWrong":0} {"outcome":"snapped d_ms=8.333333333333334","asserted":false,"hz":58.8235294117647,"counter":"batched","status":"snapped","dMs":"8.333333333
+4 A PASS {"reads":15,"staleFlagged":1,"staleWrong":1} {"snap":{"ms":438,"n":10,"deltaT":0,"gaps":10,"runs":1,"quantum":0.000001,"mediaTime":0.4,"counter":"batched"}}
+4 B PASS {"reads":84,"staleFlagged":0,"staleWrong":0} {"at1s":{"n":56,"status":"measuring"},"snap":{"ms":2314,"n":134,"deltaT":117,"gaps":125,"runs":1,"quantum":0.001,"mediaTime":2.267,"counter"
+4 Cb PASS {"reads":4,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":4593,"n":267,"deltaT":198,"gaps":262,"runs":2,"quantum":0.001,"mediaTime":4.017,"counter":"batched"},"reads":{"staleAccepted":
+4 Cc PASS {"reads":0,"staleFlagged":0,"staleWrong":0} {"outcome":"snapped d_ms=8.333333333333334","asserted":false,"hz":58.8235294117647,"counter":"batched","status":"snapped","dMs":"8.333333333
+5 A PASS {"reads":15,"staleFlagged":1,"staleWrong":1} {"snap":{"ms":400.00000000000006,"n":10,"deltaT":10,"gaps":10,"runs":1,"quantum":0.000001,"mediaTime":0.36666666666666664,"counter":"batched
+5 B PASS {"reads":84,"staleFlagged":0,"staleWrong":0} {"at1s":{"n":57,"status":"measuring"},"snap":{"ms":2310,"n":134,"deltaT":117,"gaps":130,"runs":1,"quantum":0.001,"mediaTime":2.267,"counter"
+5 Cb PASS {"reads":4,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":4598,"n":267,"deltaT":203,"gaps":252,"runs":2,"quantum":0.001,"mediaTime":4.017,"counter":"batched"},"reads":{"staleAccepted":
+5 Cc PASS {"reads":0,"staleFlagged":0,"staleWrong":0} {"outcome":"snapped d_ms=8.333333333333334","asserted":false,"hz":58.8235294117647,"counter":"batched","status":"snapped","dMs":"8.333333333
+6 A PASS {"reads":15,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":441,"n":10,"deltaT":0,"gaps":10,"runs":1,"quantum":0.000001,"mediaTime":0.4,"counter":"batched"}}
+6 B PASS {"reads":84,"staleFlagged":0,"staleWrong":0} {"at1s":{"n":57,"status":"measuring"},"snap":{"ms":2299,"n":134,"deltaT":137,"gaps":127,"runs":1,"quantum":0.001,"mediaTime":2.25,"counter":
+6 Cb PASS {"reads":4,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":4584,"n":267,"deltaT":221,"gaps":244,"runs":2,"quantum":0.001,"mediaTime":4.017,"counter":"batched"},"reads":{"staleAccepted":
+6 Cc PASS {"reads":0,"staleFlagged":0,"staleWrong":0} {"outcome":"snapped d_ms=8.333333333333334","asserted":false,"hz":58.8235294117647,"counter":"batched","status":"snapped","dMs":"8.333333333
+7 A PASS {"reads":15,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":438,"n":10,"deltaT":0,"gaps":10,"runs":1,"quantum":0.000001,"mediaTime":0.4,"counter":"batched"}}
+7 B PASS {"reads":84,"staleFlagged":0,"staleWrong":0} {"at1s":{"n":57,"status":"measuring"},"snap":{"ms":2310,"n":134,"deltaT":107,"gaps":132,"runs":1,"quantum":0.001,"mediaTime":2.267,"counter"
+7 Cb PASS {"reads":4,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":4608,"n":267,"deltaT":202,"gaps":248,"runs":2,"quantum":0.001,"mediaTime":4.017,"counter":"batched"},"reads":{"staleAccepted":
+7 Cc PASS {"reads":0,"staleFlagged":0,"staleWrong":0} {"outcome":"snapped d_ms=8.333333333333334","asserted":false,"hz":58.8235294117647,"counter":"batched","status":"snapped","dMs":"8.333333333
+8 A PASS {"reads":15,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":445,"n":10,"deltaT":0,"gaps":10,"runs":1,"quantum":0.000001,"mediaTime":0.4,"counter":"batched"}}
+8 B PASS {"reads":84,"staleFlagged":0,"staleWrong":0} {"at1s":{"n":57,"status":"measuring"},"snap":{"ms":2305,"n":134,"deltaT":123,"gaps":123,"runs":1,"quantum":0.001,"mediaTime":2.25,"counter":
+8 Cb PASS {"reads":4,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":4625,"n":267,"deltaT":212,"gaps":242,"runs":2,"quantum":0.001,"mediaTime":4.033,"counter":"batched"},"reads":{"staleAccepted":
+8 Cc PASS {"reads":0,"staleFlagged":0,"staleWrong":0} {"outcome":"snapped d_ms=8.333333333333334","asserted":false,"hz":58.8235294117647,"counter":"batched","status":"snapped","dMs":"8.333333333
+9 A PASS {"reads":15,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":439,"n":10,"deltaT":0,"gaps":10,"runs":1,"quantum":0.000001,"mediaTime":0.4,"counter":"batched"}}
+9 B PASS {"reads":84,"staleFlagged":0,"staleWrong":0} {"at1s":{"n":57,"status":"measuring"},"snap":{"ms":2314,"n":134,"deltaT":109,"gaps":133,"runs":1,"quantum":0.001,"mediaTime":2.267,"counter"
+9 Cb PASS {"reads":4,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":4576,"n":267,"deltaT":209,"gaps":263,"runs":2,"quantum":0.001,"mediaTime":4,"counter":"batched"},"reads":{"staleAccepted":0,"s
+9 Cc PASS {"reads":0,"staleFlagged":0,"staleWrong":0} {"outcome":"snapped d_ms=8.333333333333334","asserted":false,"hz":58.8235294117647,"counter":"batched","status":"snapped","dMs":"8.333333333
+10 A PASS {"reads":15,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":444,"n":10,"deltaT":0,"gaps":10,"runs":1,"quantum":0.000001,"mediaTime":0.4,"counter":"batched"}}
+10 B PASS {"reads":84,"staleFlagged":0,"staleWrong":0} {"at1s":{"n":57,"status":"measuring"},"snap":{"ms":2311,"n":134,"deltaT":112,"gaps":130,"runs":1,"quantum":0.001,"mediaTime":2.267,"counter"
+10 Cb PASS {"reads":4,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":4593,"n":267,"deltaT":206,"gaps":257,"runs":2,"quantum":0.001,"mediaTime":4.017,"counter":"batched"},"reads":{"staleAccepted":
+10 Cc PASS {"reads":0,"staleFlagged":0,"staleWrong":0} {"outcome":"snapped d_ms=15.384615384615385","asserted":false,"hz":58.8235294117647,"counter":"batched","status":"snapped","dMs":"15.3846153
+11 A PASS {"reads":15,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":430,"n":10,"deltaT":0,"gaps":10,"runs":1,"quantum":0.000001,"mediaTime":0.4,"counter":"batched"}}
+11 B PASS {"reads":84,"staleFlagged":0,"staleWrong":0} {"at1s":{"n":57,"status":"measuring"},"snap":{"ms":2313,"n":134,"deltaT":119,"gaps":129,"runs":1,"quantum":0.001,"mediaTime":2.267,"counter"
+11 Cb PASS {"reads":4,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":4573,"n":267,"deltaT":215,"gaps":256,"runs":2,"quantum":0.001,"mediaTime":4,"counter":"batched"},"reads":{"staleAccepted":0,"s
+11 Cc PASS {"reads":0,"staleFlagged":0,"staleWrong":0} {"outcome":"snapped d_ms=8.333333333333334","asserted":false,"hz":58.8235294117647,"counter":"batched","status":"snapped","dMs":"8.333333333
+12 A PASS {"reads":15,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":444,"n":10,"deltaT":0,"gaps":10,"runs":1,"quantum":0.000001,"mediaTime":0.4,"counter":"batched"}}
+12 B PASS {"reads":84,"staleFlagged":0,"staleWrong":0} {"at1s":{"n":57,"status":"measuring"},"snap":{"ms":2305,"n":134,"deltaT":118,"gaps":116,"runs":1,"quantum":0.001,"mediaTime":2.25,"counter":
+12 Cb PASS {"reads":4,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":4597.000000000001,"n":267,"deltaT":204,"gaps":264,"runs":2,"quantum":0.001,"mediaTime":4.017,"counter":"batched"},"reads":{"st
+12 Cc PASS {"reads":0,"staleFlagged":0,"staleWrong":0} {"outcome":"snapped d_ms=8.333333333333334","asserted":false,"hz":58.8235294117647,"counter":"batched","status":"snapped","dMs":"8.333333333
+13 A PASS {"reads":15,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":444,"n":10,"deltaT":0,"gaps":10,"runs":1,"quantum":0.000001,"mediaTime":0.4,"counter":"batched"}}
+13 B PASS {"reads":84,"staleFlagged":1,"staleWrong":1} {"at1s":{"n":57,"status":"measuring"},"snap":{"ms":2303,"n":134,"deltaT":122,"gaps":126,"runs":1,"quantum":0.001,"mediaTime":2.25,"counter":
+13 Cb PASS {"reads":4,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":4601,"n":267,"deltaT":214,"gaps":246,"runs":2,"quantum":0.001,"mediaTime":4.017,"counter":"batched"},"reads":{"staleAccepted":
+13 Cc PASS {"reads":0,"staleFlagged":0,"staleWrong":0} {"outcome":"snapped d_ms=15.384615384615385","asserted":false,"hz":58.8235294117647,"counter":"batched","status":"snapped","dMs":"15.3846153
+14 A PASS {"reads":15,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":441,"n":10,"deltaT":0,"gaps":10,"runs":1,"quantum":0.000001,"mediaTime":0.4,"counter":"batched"}}
+14 B PASS {"reads":84,"staleFlagged":0,"staleWrong":0} {"at1s":{"n":57,"status":"measuring"},"snap":{"ms":2313,"n":134,"deltaT":118,"gaps":132,"runs":1,"quantum":0.001,"mediaTime":2.267,"counter"
+14 Cb PASS {"reads":4,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":4598,"n":267,"deltaT":197,"gaps":254,"runs":2,"quantum":0.001,"mediaTime":4.017,"counter":"batched"},"reads":{"staleAccepted":
+14 Cc PASS {"reads":0,"staleFlagged":0,"staleWrong":0} {"outcome":"snapped d_ms=8.333333333333334","asserted":false,"hz":58.8235294117647,"counter":"batched","status":"snapped","dMs":"8.333333333
+15 A PASS {"reads":15,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":399,"n":10,"deltaT":11,"gaps":10,"runs":1,"quantum":0.000001,"mediaTime":0.36666666666666664,"counter":"batched"}}
+15 B PASS {"reads":84,"staleFlagged":0,"staleWrong":0} {"at1s":{"n":57,"status":"measuring"},"snap":{"ms":2303,"n":134,"deltaT":123,"gaps":125,"runs":1,"quantum":0.001,"mediaTime":2.25,"counter":
+15 Cb PASS {"reads":4,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":4657,"n":267,"deltaT":208,"gaps":255,"runs":2,"quantum":0.001,"mediaTime":4.05,"counter":"batched"},"reads":{"staleAccepted":0
+15 Cc PASS {"reads":0,"staleFlagged":0,"staleWrong":0} {"outcome":"snapped d_ms=8.333333333333334","asserted":false,"hz":58.8235294117647,"counter":"batched","status":"snapped","dMs":"8.333333333
+16 A PASS {"reads":15,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":445,"n":10,"deltaT":0,"gaps":10,"runs":1,"quantum":0.000001,"mediaTime":0.4,"counter":"batched"}}
+16 B PASS {"reads":84,"staleFlagged":0,"staleWrong":0} {"at1s":{"n":58,"status":"measuring"},"snap":{"ms":2301,"n":134,"deltaT":126,"gaps":125,"runs":1,"quantum":0.001,"mediaTime":2.25,"counter":
+16 Cb PASS {"reads":4,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":4596,"n":267,"deltaT":203,"gaps":266,"runs":2,"quantum":0.001,"mediaTime":4.017,"counter":"batched"},"reads":{"staleAccepted":
+16 Cc PASS {"reads":0,"staleFlagged":0,"staleWrong":0} {"outcome":"snapped d_ms=8.333333333333334","asserted":false,"hz":58.8235294117647,"counter":"batched","status":"snapped","dMs":"8.333333333
+17 A PASS {"reads":15,"staleFlagged":1,"staleWrong":1} {"snap":{"ms":430,"n":10,"deltaT":0,"gaps":10,"runs":1,"quantum":0.000001,"mediaTime":0.4,"counter":"batched"}}
+17 B PASS {"reads":84,"staleFlagged":0,"staleWrong":0} {"at1s":{"n":56,"status":"measuring"},"snap":{"ms":2315,"n":134,"deltaT":118,"gaps":128,"runs":1,"quantum":0.001,"mediaTime":2.267,"counter"
+17 Cb PASS {"reads":4,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":4585,"n":267,"deltaT":216,"gaps":251,"runs":2,"quantum":0.001,"mediaTime":4,"counter":"batched"},"reads":{"staleAccepted":0,"s
+17 Cc PASS {"reads":0,"staleFlagged":0,"staleWrong":0} {"outcome":"snapped d_ms=8.333333333333334","asserted":false,"hz":58.8235294117647,"counter":"batched","status":"snapped","dMs":"8.333333333
+18 A PASS {"reads":15,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":432,"n":10,"deltaT":0,"gaps":10,"runs":1,"quantum":0.000001,"mediaTime":0.4,"counter":"batched"}}
+18 B PASS {"reads":84,"staleFlagged":1,"staleWrong":1} {"at1s":{"n":58,"status":"measuring"},"snap":{"ms":2292,"n":134,"deltaT":117,"gaps":131,"runs":1,"quantum":0.001,"mediaTime":2.25,"counter":
+18 Cb PASS {"reads":4,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":4595.000000000001,"n":267,"deltaT":197,"gaps":259,"runs":2,"quantum":0.001,"mediaTime":4.017,"counter":"batched"},"reads":{"st
+18 Cc PASS {"reads":0,"staleFlagged":0,"staleWrong":0} {"outcome":"snapped d_ms=8.333333333333334","asserted":false,"hz":58.8235294117647,"counter":"batched","status":"snapped","dMs":"8.333333333
+19 A PASS {"reads":15,"staleFlagged":1,"staleWrong":1} {"snap":{"ms":438,"n":10,"deltaT":0,"gaps":10,"runs":1,"quantum":0.000001,"mediaTime":0.4,"counter":"batched"}}
+19 B PASS {"reads":84,"staleFlagged":0,"staleWrong":0} {"at1s":{"n":57,"status":"measuring"},"snap":{"ms":2311,"n":134,"deltaT":109,"gaps":131,"runs":1,"quantum":0.001,"mediaTime":2.267,"counter"
+19 Cb PASS {"reads":4,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":4589,"n":267,"deltaT":217,"gaps":258,"runs":2,"quantum":0.001,"mediaTime":4.017,"counter":"batched"},"reads":{"staleAccepted":
+19 Cc PASS {"reads":0,"staleFlagged":0,"staleWrong":0} {"outcome":"snapped d_ms=8.333333333333334","asserted":false,"hz":58.8235294117647,"counter":"batched","status":"snapped","dMs":"8.333333333
+20 A PASS {"reads":15,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":442,"n":10,"deltaT":0,"gaps":10,"runs":1,"quantum":0.000001,"mediaTime":0.4,"counter":"batched"}}
+20 B PASS {"reads":84,"staleFlagged":0,"staleWrong":0} {"at1s":{"n":57,"status":"measuring"},"snap":{"ms":2310,"n":134,"deltaT":117,"gaps":123,"runs":1,"quantum":0.001,"mediaTime":2.267,"counter"
+20 Cb PASS {"reads":4,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":4599,"n":267,"deltaT":203,"gaps":245,"runs":2,"quantum":0.001,"mediaTime":4.017,"counter":"batched"},"reads":{"staleAccepted":
+20 Cc PASS {"reads":0,"staleFlagged":0,"staleWrong":0} {"outcome":"snapped d_ms=8.333333333333334","asserted":false,"hz":58.8235294117647,"counter":"batched","status":"snapped","dMs":"8.333333333
+21 A PASS {"reads":15,"staleFlagged":1,"staleWrong":1} {"snap":{"ms":433,"n":10,"deltaT":0,"gaps":10,"runs":1,"quantum":0.000001,"mediaTime":0.4,"counter":"batched"}}
+21 B PASS {"reads":84,"staleFlagged":0,"staleWrong":0} {"at1s":{"n":57,"status":"measuring"},"snap":{"ms":2302,"n":134,"deltaT":124,"gaps":122,"runs":1,"quantum":0.001,"mediaTime":2.25,"counter":
+21 Cb PASS {"reads":4,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":4590,"n":267,"deltaT":204,"gaps":257,"runs":2,"quantum":0.001,"mediaTime":4.017,"counter":"batched"},"reads":{"staleAccepted":
+21 Cc PASS {"reads":0,"staleFlagged":0,"staleWrong":0} {"outcome":"snapped d_ms=8.333333333333334","asserted":false,"hz":58.8235294117647,"counter":"batched","status":"snapped","dMs":"8.333333333
+22 A PASS {"reads":15,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":442,"n":10,"deltaT":0,"gaps":10,"runs":1,"quantum":0.000001,"mediaTime":0.4,"counter":"batched"}}
+22 B PASS {"reads":84,"staleFlagged":0,"staleWrong":0} {"at1s":{"n":57,"status":"measuring"},"snap":{"ms":2316,"n":135,"deltaT":131,"gaps":122,"runs":1,"quantum":0.001,"mediaTime":2.267,"counter"
+22 Cb PASS {"reads":4,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":4588,"n":267,"deltaT":202,"gaps":253,"runs":2,"quantum":0.001,"mediaTime":4.017,"counter":"batched"},"reads":{"staleAccepted":
+22 Cc PASS {"reads":0,"staleFlagged":0,"staleWrong":0} {"outcome":"snapped d_ms=8.333333333333334","asserted":false,"hz":58.8235294117647,"counter":"batched","status":"snapped","dMs":"8.333333333
+23 A PASS {"reads":15,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":442,"n":10,"deltaT":0,"gaps":10,"runs":1,"quantum":0.000001,"mediaTime":0.4,"counter":"batched"}}
+23 B PASS {"reads":84,"staleFlagged":0,"staleWrong":0} {"at1s":{"n":57,"status":"measuring"},"snap":{"ms":2300,"n":134,"deltaT":126,"gaps":128,"runs":1,"quantum":0.001,"mediaTime":2.25,"counter":
+23 Cb PASS {"reads":4,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":4592,"n":267,"deltaT":207,"gaps":248,"runs":2,"quantum":0.001,"mediaTime":4.017,"counter":"batched"},"reads":{"staleAccepted":
+23 Cc PASS {"reads":0,"staleFlagged":0,"staleWrong":0} {"outcome":"snapped d_ms=8.333333333333334","asserted":false,"hz":58.8235294117647,"counter":"batched","status":"snapped","dMs":"8.333333333
+24 A PASS {"reads":15,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":442,"n":10,"deltaT":0,"gaps":10,"runs":1,"quantum":0.000001,"mediaTime":0.4,"counter":"batched"}}
+24 B PASS {"reads":84,"staleFlagged":0,"staleWrong":0} {"at1s":{"n":58,"status":"measuring"},"snap":{"ms":2300,"n":134,"deltaT":137,"gaps":127,"runs":1,"quantum":0.001,"mediaTime":2.25,"counter":
+24 Cb PASS {"reads":4,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":4587,"n":267,"deltaT":221,"gaps":210,"runs":2,"quantum":0.001,"mediaTime":4.017,"counter":"batched"},"reads":{"staleAccepted":
+24 Cc PASS {"reads":0,"staleFlagged":0,"staleWrong":0} {"outcome":"snapped d_ms=8.333333333333334","asserted":false,"hz":58.8235294117647,"counter":"batched","status":"snapped","dMs":"8.333333333
+25 A PASS {"reads":15,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":441,"n":10,"deltaT":0,"gaps":10,"runs":1,"quantum":0.000001,"mediaTime":0.4,"counter":"batched"}}
+25 B PASS {"reads":84,"staleFlagged":0,"staleWrong":0} {"at1s":{"n":56,"status":"measuring"},"snap":{"ms":2313,"n":134,"deltaT":106,"gaps":128,"runs":1,"quantum":0.001,"mediaTime":2.267,"counter"
+25 Cb PASS {"reads":4,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":4600,"n":267,"deltaT":203,"gaps":252,"runs":2,"quantum":0.001,"mediaTime":4.017,"counter":"batched"},"reads":{"staleAccepted":
+25 Cc PASS {"reads":0,"staleFlagged":0,"staleWrong":0} {"outcome":"snapped d_ms=8.333333333333334","asserted":false,"hz":58.8235294117647,"counter":"batched","status":"snapped","dMs":"8.333333333
+26 A PASS {"reads":15,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":445,"n":10,"deltaT":0,"gaps":10,"runs":1,"quantum":0.000001,"mediaTime":0.4,"counter":"batched"}}
+26 B PASS {"reads":84,"staleFlagged":0,"staleWrong":0} {"at1s":{"n":58,"status":"measuring"},"snap":{"ms":2287,"n":134,"deltaT":129,"gaps":109,"runs":1,"quantum":0.001,"mediaTime":2.25,"counter":
+26 Cb PASS {"reads":4,"staleFlagged":0,"staleWrong":0} {"snap":{"ms":4589,"n":267,"deltaT":226,"gaps":260,"runs":2,"quantum":0.001,"mediaTime":4.017,"counter":"batched"},"reads":{"staleAccepted":
+26 Cc PASS {"reads":0,"staleFlagged":0,"staleWrong":0} {"outcome":"snapped d_ms=8.333333333333334","asserted":false,"hz":58.8235294117647,"counter":"batched","status":"snapped","dMs":"8.333333333
+SUMMARY {"runs":108,"pass":108,"failed":[],"reads":{"reads":2781,"staleFlagged":7,"staleWrong":7},"cc":{"batched":27,"outcomes":{"snapped d_ms=8.333333333333334":25,"snapped d_ms=15.384615384615385":2},"callbacks":{"n":27,"min":104,"median":120,"p95":121,"p99":121,"max":121}}}

@@ -1,0 +1,156 @@
+{
+ "launches": {
+  "lines": 1540,
+  "panics": 0,
+  "statuses": {
+   "206": 1540
+  },
+  "handlerUs": {
+   "n": 1540,
+   "min": 11,
+   "median": 13,
+   "p95": 26,
+   "p99": 53,
+   "max": 307
+  },
+  "frames206": 1540
+ },
+ "probe": {
+  "lines": 239,
+  "panics": 0,
+  "statuses": {
+   "200": 1,
+   "206": 233,
+   "403": 1,
+   "404": 1,
+   "416": 3
+  },
+  "handlerUs": {
+   "n": 239,
+   "min": 9,
+   "median": 12,
+   "p95": 49,
+   "p99": 237,
+   "max": 511
+  },
+  "probes": [
+   {
+    "id": "a-b",
+    "status": 206,
+    "line": "1790733842523 GET range=bytes=0-99 -> 206 cr=bytes 0-99/52036 100B 77us path=/Users/ivapo/dev/main/video-player-assimilator/test/fixtures/frames.mp4"
+   },
+   {
+    "id": "a-",
+    "status": 206,
+    "line": "1790733842528 GET range=bytes=100- -> 206 cr=bytes 100-52035/52036 51936B 36us path=/Users/ivapo/dev/main/video-player-assimilator/test/fixtures/frames.mp4"
+   },
+   {
+    "id": "-n",
+    "status": 206,
+    "line": "1790733842528 GET range=bytes=-100 -> 206 cr=bytes 51936-52035/52036 100B 16us path=/Users/ivapo/dev/main/video-player-assimilator/test/fixtures/frames.mp4"
+   },
+   {
+    "id": "bad",
+    "status": 416,
+    "line": "1790733842529 GET range=bytes=abc -> 416 cr=bytes */52036 0B 13us path=/Users/ivapo/dev/main/video-player-assimilator/test/fixtures/frames.mp4"
+   },
+   {
+    "id": "out-of-range",
+    "status": 416,
+    "line": "1790733842529 GET range=bytes=60000- -> 416 cr=bytes */52036 0B 12us path=/Users/ivapo/dev/main/video-player-assimilator/test/fixtures/frames.mp4"
+   },
+   {
+    "id": "multi",
+    "status": 416,
+    "line": "1790733842529 GET range=bytes=0-9,20-29 -> 416 cr=bytes */52036 0B 21us path=/Users/ivapo/dev/main/video-player-assimilator/test/fixtures/frames.mp4"
+   },
+   {
+    "id": "head",
+    "status": 200,
+    "line": "1790733842529 HEAD range=- -> 200 cr=- 0B 13us path=/Users/ivapo/dev/main/video-player-assimilator/test/fixtures/frames.mp4"
+   },
+   {
+    "id": "big 0-2097151",
+    "status": 206,
+    "line": "1790733842530 GET range=bytes=0-2097151 -> 206 cr=bytes 0-1048575/1998549098 1048576B 511us path=/Users/ivapo/Movies/vpa-big.mp4"
+   },
+   {
+    "id": "big 0-",
+    "status": 206,
+    "line": "1790733842531 GET range=bytes=0- -> 206 cr=bytes 0-1048575/1998549098 1048576B 70us path=/Users/ivapo/Movies/vpa-big.mp4"
+   },
+   {
+    "id": "big no range",
+    "status": 206,
+    "line": "1790733842532 GET range=- -> 206 cr=bytes 0-1048575/1998549098 1048576B 62us path=/Users/ivapo/Movies/vpa-big.mp4"
+   },
+   {
+    "id": "never opened",
+    "status": 403,
+    "line": "1790733842534 GET range=bytes=0-99 -> 403 cr=- 0B 36us path=/Users/ivapo/dev/main/video-player-assimilator/test/fixtures/frames120.mp4"
+   },
+   {
+    "id": "opened, deleted",
+    "status": 404,
+    "line": "1790733842534 GET range=bytes=0-99 -> 404 cr=- 0B 9us path=/Users/ivapo/dev/main/video-player-assimilator/test-results/desktop-work/probe deleted.mp4"
+   }
+  ]
+ },
+ "paths": {
+  "lines": 841,
+  "panics": 0,
+  "statuses": {
+   "206": 841
+  },
+  "handlerUs": {
+   "n": 841,
+   "min": 12,
+   "median": 19,
+   "p95": 63,
+   "p99": 94,
+   "max": 191
+  },
+  "perPath": [
+   {
+    "name": "a b  c (1).mp4",
+    "logged": true
+   },
+   {
+    "name": "this & that.mp4",
+    "logged": true
+   },
+   {
+    "name": "é NFD, é NFC.mp4",
+    "logged": true
+   },
+   {
+    "name": "видео 日本語 😀.mp4",
+    "logged": true
+   },
+   {
+    "name": "percent%20hash#q?.mp4",
+    "logged": true
+   },
+   {
+    "name": "LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL",
+    "logged": true
+   }
+  ]
+ },
+ "big": {
+  "lines": 623,
+  "panics": 0,
+  "statuses": {
+   "206": 623
+  },
+  "handlerUs": {
+   "n": 623,
+   "min": 11,
+   "median": 28,
+   "p95": 774,
+   "p99": 816,
+   "max": 1339
+  },
+  "big206": 623
+ }
+}

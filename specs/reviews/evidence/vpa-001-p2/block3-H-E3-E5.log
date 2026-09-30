@@ -1,0 +1,13 @@
+=== H1 21:45:15
+SUMMARY {"runs":5,"ok":5,"openToFirstFrameMs":{"n":5,"min":410,"median":413,"p95":575,"p99":575,"max":575}}
+=== H1 exit 0 21:45:35
+=== H2 21:45:35
+SUMMARY {"runs":5,"ok":5,"openToFirstFrameMs":{"n":5,"min":97,"median":112,"p95":120,"p99":120,"max":120}}
+=== H2 exit 0 21:45:57
+=== E3 21:45:57
+SUMMARY {"paths":6,"ok":6,"frame10":5,"staleWarned":1}
+=== E3 exit 0 21:46:03
+=== E5 21:46:03
+FAIL ENOENT: no such file or directory, open '/Users/ivapo/dev/main/video-player-assimilator/test-results/desktop-big.json'
+=== E5 exit 1 21:46:03
+BLOCK STOPPED at E5

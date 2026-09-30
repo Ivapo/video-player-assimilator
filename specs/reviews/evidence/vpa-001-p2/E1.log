@@ -1,0 +1,21 @@
+0 OK   {"i":0,"ok":true,"helloMs":408,"env":{"href":"tauri://localhost","vis":"visible","focus":true,"inner":"960x728"},"firstFrameMs":73,"metadataMs":42}
+1 OK   {"i":1,"ok":true,"helloMs":303,"env":{"href":"tauri://localhost","vis":"visible","focus":true,"inner":"960x728"},"firstFrameMs":57,"metadataMs":38}
+2 OK   {"i":2,"ok":true,"helloMs":312,"env":{"href":"tauri://localhost","vis":"visible","focus":true,"inner":"960x728"},"firstFrameMs":64.00000000000003,"metadataMs":38}
+3 OK   {"i":3,"ok":true,"helloMs":325,"env":{"href":"tauri://localhost","vis":"visible","focus":true,"inner":"960x728"},"firstFrameMs":69,"metadataMs":37}
+4 OK   {"i":4,"ok":true,"helloMs":303,"env":{"href":"tauri://localhost","vis":"visible","focus":true,"inner":"960x728"},"firstFrameMs":60,"metadataMs":38}
+5 OK   {"i":5,"ok":true,"helloMs":319,"env":{"href":"tauri://localhost","vis":"visible","focus":true,"inner":"960x728"},"firstFrameMs":72,"metadataMs":38}
+6 OK   {"i":6,"ok":true,"helloMs":292,"env":{"href":"tauri://localhost","vis":"visible","focus":true,"inner":"960x728"},"firstFrameMs":71,"metadataMs":41}
+7 OK   {"i":7,"ok":true,"helloMs":355,"env":{"href":"tauri://localhost","vis":"visible","focus":true,"inner":"960x728"},"firstFrameMs":59,"metadataMs":39.000000000000014}
+8 OK   {"i":8,"ok":true,"helloMs":301,"env":{"href":"tauri://localhost","vis":"visible","focus":true,"inner":"960x728"},"firstFrameMs":72,"metadataMs":37}
+9 OK   {"i":9,"ok":true,"helloMs":323,"env":{"href":"tauri://localhost","vis":"visible","focus":true,"inner":"960x728"},"firstFrameMs":60,"metadataMs":39}
+10 OK   {"i":10,"ok":true,"helloMs":340,"env":{"href":"tauri://localhost","vis":"visible","focus":true,"inner":"960x728"},"firstFrameMs":71,"metadataMs":39.000000000000014}
+11 OK   {"i":11,"ok":true,"helloMs":332,"env":{"href":"tauri://localhost","vis":"visible","focus":true,"inner":"960x728"},"firstFrameMs":65.00000000000003,"metadataMs":37}
+12 OK   {"i":12,"ok":true,"helloMs":328,"env":{"href":"tauri://localhost","vis":"visible","focus":true,"inner":"960x728"},"firstFrameMs":69,"metadataMs":37}
+13 OK   {"i":13,"ok":true,"helloMs":322,"env":{"href":"tauri://localhost","vis":"visible","focus":true,"inner":"960x728"},"firstFrameMs":72,"metadataMs":38}
+14 OK   {"i":14,"ok":true,"helloMs":310,"env":{"href":"tauri://localhost","vis":"visible","focus":true,"inner":"960x728"},"firstFrameMs":66.00000000000003,"metadataMs":37}
+15 OK   {"i":15,"ok":true,"helloMs":327,"env":{"href":"tauri://localhost","vis":"visible","focus":true,"inner":"960x728"},"firstFrameMs":55,"metadataMs":36}
+16 OK   {"i":16,"ok":true,"helloMs":326,"env":{"href":"tauri://localhost","vis":"visible","focus":true,"inner":"960x728"},"firstFrameMs":58,"metadataMs":37}
+17 OK   {"i":17,"ok":true,"helloMs":320,"env":{"href":"tauri://localhost","vis":"visible","focus":true,"inner":"960x728"},"firstFrameMs":72,"metadataMs":37}
+18 OK   {"i":18,"ok":true,"helloMs":325,"env":{"href":"tauri://localhost","vis":"visible","focus":true,"inner":"960x728"},"firstFrameMs":59,"metadataMs":38}
+19 OK   {"i":19,"ok":true,"helloMs":348,"env":{"href":"tauri://localhost","vis":"visible","focus":true,"inner":"960x728"},"firstFrameMs":59.00000000000003,"metadataMs":39}
+SUMMARY {"launches":20,"ok":20,"firstFrameMs":{"n":20,"min":55,"median":66,"p95":73,"p99":73,"max":73}}

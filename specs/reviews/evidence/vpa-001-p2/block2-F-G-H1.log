@@ -1,0 +1,19 @@
+=== F 21:24:09
+SUMMARY {"runs":108,"pass":108,"failed":[],"reads":{"reads":2781,"staleFlagged":7,"staleWrong":7},"cc":{"batched":27,"outcomes":{"snapped d_ms=8.333333333333334":25,"snapped d_ms=15.384615384615385":2},"callbacks":{"n":27,"min":104,"median":120,"p95":121,"p99":121,"max":121}}}
+=== F exit 0 21:32:56
+=== G1 21:32:56
+SUMMARY {"runs":50,"errors":0,"stale300":0,"healedBy2s":0,"warnInStale":0,"warnInCorrect":0,"staleWithoutWarn":0,"wrongWording":0,"seekedToTargetMs":{"n":50,"min":0,"median":9,"p95":16,"p99":18,"max":18}}
+=== G1 exit 0 21:38:44
+=== G2 21:38:44
+SUMMARY {"runs":50,"errors":0,"stale300":0,"healedBy2s":0,"warnInStale":0,"warnInCorrect":0,"staleWithoutWarn":0,"wrongWording":0,"seekedToTargetMs":{"n":50,"min":2,"median":9,"p95":18,"p99":18,"max":18}}
+=== G2 exit 0 21:44:46
+=== H1 21:44:46
+0 FAIL Cannot access 'openWith' before initialization
+1 FAIL Cannot access 'openWith' before initialization
+2 FAIL Cannot access 'openWith' before initialization
+3 FAIL Cannot access 'openWith' before initialization
+4 FAIL Cannot access 'openWith' before initialization
+SUMMARY {"runs":5,"ok":0,"openToFirstFrameMs":null}
+FAIL [desktop] H.1: 0/5
+=== H1 exit 1 21:44:52
+BLOCK STOPPED at H1

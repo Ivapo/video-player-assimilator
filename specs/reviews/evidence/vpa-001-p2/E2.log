@@ -1,0 +1,13 @@
+OK   a-b              206 bytes 0-99/52036 100 
+OK   a-               206 bytes 100-52035/52036 51936 
+OK   -n               206 bytes 51936-52035/52036 100 
+OK   bad              416 bytes */52036 0 
+OK   out-of-range     416 bytes */52036 0 
+OK   multi            416 bytes */52036 0 
+OK   head             200  0 
+OK   big 0-2097151    206 bytes 0-1048575/1998549098 1048576 
+OK   big 0-           206 bytes 0-1048575/1998549098 1048576 
+OK   big no range     206 bytes 0-1048575/1998549098 1048576 
+OK   never opened     403  0 
+OK   opened, deleted  404  0 
+SUMMARY {"probes":12,"pass":12}

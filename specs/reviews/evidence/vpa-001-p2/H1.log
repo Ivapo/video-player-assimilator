@@ -1,0 +1,6 @@
+0 OK   {"i":0,"ok":true,"openToFirstFrameMs":575,"name":"frames60ms.mp4","dMs":"16.666666666666668","env":{"href":"tauri://localhost","vis":"visible","focus":true,"inner":"960x728"},"pids":1}
+1 OK   {"i":1,"ok":true,"openToFirstFrameMs":410.000244140625,"name":"frames60ms.mp4","dMs":"16.666666666666668","env":{"href":"tauri://localhost","vis":"visible","focus":true,"inner":"960x728"},"pids":1}
+2 OK   {"i":2,"ok":true,"openToFirstFrameMs":411,"name":"frames60ms.mp4","dMs":"16.666666666666668","env":{"href":"tauri://localhost","vis":"visible","focus":true,"inner":"960x728"},"pids":1}
+3 OK   {"i":3,"ok":true,"openToFirstFrameMs":423,"name":"frames60ms.mp4","dMs":"16.666666666666668","env":{"href":"tauri://localhost","vis":"visible","focus":true,"inner":"960x728"},"pids":1}
+4 OK   {"i":4,"ok":true,"openToFirstFrameMs":413,"name":"frames60ms.mp4","dMs":"16.666666666666668","env":{"href":"tauri://localhost","vis":"visible","focus":true,"inner":"960x728"},"pids":1}
+SUMMARY {"runs":5,"ok":5,"openToFirstFrameMs":{"n":5,"min":410,"median":413,"p95":575,"p99":575,"max":575}}

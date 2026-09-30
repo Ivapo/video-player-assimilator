@@ -1,0 +1,128 @@
+{
+ "launches": {
+  "lines": 1540,
+  "panics": 0,
+  "statuses": {},
+  "handlerUs": null,
+  "frames206": 0
+ },
+ "probe": {
+  "lines": 239,
+  "panics": 0,
+  "statuses": {
+   "200": 1,
+   "403": 1,
+   "404": 1
+  },
+  "handlerUs": {
+   "n": 3,
+   "min": 9,
+   "median": 13,
+   "p95": 36,
+   "p99": 36,
+   "max": 36
+  },
+  "probes": [
+   {
+    "id": "a-b",
+    "status": 206,
+    "line": null
+   },
+   {
+    "id": "a-",
+    "status": 206,
+    "line": null
+   },
+   {
+    "id": "-n",
+    "status": 206,
+    "line": null
+   },
+   {
+    "id": "bad",
+    "status": 416,
+    "line": null
+   },
+   {
+    "id": "out-of-range",
+    "status": 416,
+    "line": null
+   },
+   {
+    "id": "multi",
+    "status": 416,
+    "line": null
+   },
+   {
+    "id": "head",
+    "status": 200,
+    "line": "1790733842529 HEAD range=- -> 200 cr=- 0B 13us path=/Users/ivapo/dev/main/video-player-assimilator/test/fixtures/frames.mp4"
+   },
+   {
+    "id": "big 0-2097151",
+    "status": 206,
+    "line": null
+   },
+   {
+    "id": "big 0-",
+    "status": 206,
+    "line": null
+   },
+   {
+    "id": "big no range",
+    "status": 206,
+    "line": null
+   },
+   {
+    "id": "never opened",
+    "status": 403,
+    "line": "1790733842534 GET range=bytes=0-99 -> 403 cr=- 0B 36us path=/Users/ivapo/dev/main/video-player-assimilator/test/fixtures/frames120.mp4"
+   },
+   {
+    "id": "opened, deleted",
+    "status": 404,
+    "line": "1790733842534 GET range=bytes=0-99 -> 404 cr=- 0B 9us path=/Users/ivapo/dev/main/video-player-assimilator/test-results/desktop-work/probe deleted.mp4"
+   }
+  ]
+ },
+ "paths": {
+  "lines": 841,
+  "panics": 0,
+  "statuses": {},
+  "handlerUs": null,
+  "perPath": [
+   {
+    "name": "a b  c (1).mp4",
+    "logged": false
+   },
+   {
+    "name": "this & that.mp4",
+    "logged": false
+   },
+   {
+    "name": "é NFD, é NFC.mp4",
+    "logged": false
+   },
+   {
+    "name": "видео 日本語 😀.mp4",
+    "logged": false
+   },
+   {
+    "name": "percent%20hash#q?.mp4",
+    "logged": false
+   },
+   {
+    "name": "LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL",
+    "logged": false
+   }
+  ]
+ },
+ "big": {
+  "lines": 623,
+  "panics": 0,
+  "statuses": {},
+  "handlerUs": null,
+  "big206": 0
+ }
+}
+FAIL [desktop] E.5: stream.log is missing a line, or has a panic

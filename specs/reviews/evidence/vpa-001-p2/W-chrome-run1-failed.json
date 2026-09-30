@@ -1,0 +1,14 @@
+{
+  "A": {
+    "snap": {
+      "ms": 365.6000000014901,
+      "n": 10,
+      "deltaT": 10,
+      "gaps": 10,
+      "runs": 1,
+      "quantum": 0.000001,
+      "mediaTime": 0.4,
+      "counter": "per-frame"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+
+> video-player-assimilator@0.2.0 test:chrome
+> playwright test
+
+
+Running 4 tests using 1 worker
+
+  ✓  1 test/e2e/chrome.spec.ts:26:1 › A — frames.mp4 (9.3s)
+  ✓  2 test/e2e/chrome.spec.ts:27:1 › B — frames60ms.mp4 (24.0s)
+  ✓  3 test/e2e/chrome.spec.ts:28:1 › C(b) — seek bar before d is known (5.1s)
+gate-chrome {"A":{"snap":{"ms":691,"n":19,"deltaT":19,"gaps":19,"runs":1,"quantum":0.000001,"mediaTime":0.7,"counter":"per-frame"}},"B":{"at1s":{"n":58,"status":"measuring"},"snap":{"ms":2248.5999999940395,"n":134,"deltaT":135,"gaps":134,"runs":1,"quantum":0.001,"mediaTime":2.283,"counter":"per-frame"},"b3":{"staleAccepted":0,"staleFlagged":0}},"Cb":{"snap":{"ms":4498,"n":267,"deltaT":268,"gaps":267,"runs":2,"quantum":0.001,"mediaTime":4.017,"counter":"per-frame"},"reads":{"staleAccepted":0,"staleFlagged":0}},"Cc":{"outcome":"not-supported","asserted":true,"hz":59.88023952095813,"counter":"per-frame","status":"unsupported","dMs":"","n":10,"deltaT":24,"runs":1,"gaps":10,"quantum":0.000001}}
+  ✓  4 test/e2e/chrome.spec.ts:29:1 › C(c) — 120 fps on this display (3.4s)
+
+  4 passed (1.3m)
